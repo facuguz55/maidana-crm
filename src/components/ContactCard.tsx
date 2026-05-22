@@ -74,7 +74,7 @@ export default function ContactCard({ contact }: Props) {
   return (
     <div
       onClick={() => router.push(`/contact/${contact.id}`)}
-      className={`relative bg-slate-900 border border-slate-800 border-l-2 ${cfg.leftBorder} rounded-xl p-3.5 cursor-pointer transition-all duration-150 hover:bg-slate-800/70 hover:border-slate-700 active:scale-[0.99] ${isPending ? 'opacity-50' : ''}`}
+      className={`relative bg-slate-900 border border-slate-700 border-l-2 ${cfg.leftBorder} rounded-xl p-3.5 cursor-pointer transition-all duration-150 hover:bg-slate-800/70 hover:border-slate-700 active:scale-[0.99] ${isPending ? 'opacity-50' : ''}`}
     >
       <div className="flex items-start gap-3">
         {/* Avatar con iniciales */}

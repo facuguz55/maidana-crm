@@ -85,7 +85,7 @@ export default function SettingsClient({ settings }: Props) {
   return (
     <div className="bg-slate-950 min-h-[100dvh] flex flex-col">
       {/* Header */}
-      <div className="px-4 py-3 flex items-center gap-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm flex-shrink-0">
+      <div className="px-4 py-3 flex items-center gap-3 border-b border-slate-700 bg-slate-800/90 backdrop-blur-sm flex-shrink-0">
         <button
           onClick={() => router.back()}
           className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all active:scale-95"
@@ -168,7 +168,7 @@ export default function SettingsClient({ settings }: Props) {
               onChange={e => update('form_message', e.target.value)}
               placeholder="Hola! Para completar tu pedido completá este formulario: https://forms.gle/..."
               rows={3}
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all font-sans"
+              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all font-sans"
             />
           </div>
         </Section>
@@ -241,8 +241,8 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-      <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-800/80">
+    <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-700/80">
         <div className={`w-7 h-7 rounded-lg ${iconBg} border flex items-center justify-center`}>
           <Icon size={13} className={iconColor} />
         </div>
@@ -272,7 +272,7 @@ function Field({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all"
+        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-sm outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all"
       />
     </div>
   )
@@ -302,7 +302,7 @@ function PasswordField({
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full px-3.5 py-2.5 pr-10 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all"
+          className="w-full px-3.5 py-2.5 pr-10 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-sm outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all"
         />
         <button
           type="button"

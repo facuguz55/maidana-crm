@@ -174,7 +174,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   return (
     <div className="bg-slate-950 h-[100dvh] flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 py-3 flex items-center gap-3 bg-slate-900/90 backdrop-blur-sm border-b border-slate-800">
+      <div className="flex-shrink-0 px-4 py-3 flex items-center gap-3 bg-slate-900/90 backdrop-blur-sm border-b border-slate-700">
         <button
           onClick={() => router.back()}
           className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all active:scale-95"
@@ -204,7 +204,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
         <div className="p-4 space-y-3">
 
           {/* Status selector */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-3.5">
             <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Estado</h2>
             <div className="flex flex-wrap gap-2">
               {STATUS_OPTIONS.map(opt => (
@@ -252,7 +252,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
                   {copied ? 'Copiado' : 'Copiar'}
                 </button>
               </div>
-              <pre className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-400 text-xs whitespace-pre-wrap font-mono leading-relaxed">
+              <pre className="bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-400 text-xs whitespace-pre-wrap font-mono leading-relaxed">
 {`Para completar tu pedido, respondé con este formato:\n\nNombre:\nDirección:\nCantidad:\nTeléfono:`}
               </pre>
             </div>
@@ -273,14 +273,14 @@ export default function ContactDetailClient({ contact: initialContact, order, in
           )}
 
           {/* Notas */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-3.5">
             <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Notas internas</h2>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Escribí notas sobre este contacto..."
               rows={3}
-              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all font-sans"
+              className="w-full p-3 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all font-sans"
             />
             <button
               onClick={handleSaveNotes}
@@ -317,7 +317,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
                 className={`max-w-[78%] px-3.5 py-2.5 text-sm leading-snug break-words ${
                   msg.direction === 'outbound'
                     ? 'bg-orange-500 text-white rounded-2xl rounded-br-sm shadow-lg shadow-orange-500/20'
-                    : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-2xl rounded-bl-sm'
+                    : 'bg-slate-900 border border-slate-700 text-slate-100 rounded-2xl rounded-bl-sm'
                 }`}
               >
                 <p>{msg.body}</p>
@@ -332,7 +332,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
       </div>
 
       {/* Chat input bar */}
-      <div className="flex-shrink-0 bg-slate-900 border-t border-slate-800 p-3 space-y-2">
+      <div className="flex-shrink-0 bg-slate-900 border-t border-slate-700 p-3 space-y-2">
         <button
           onClick={handleSendForm}
           disabled={sending}
@@ -355,7 +355,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
             placeholder="Escribí un mensaje..."
             rows={1}
             style={{ maxHeight: '120px' }}
-            className="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 font-sans leading-snug overflow-y-auto transition-all"
+            className="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 font-sans leading-snug overflow-y-auto transition-all"
           />
           <button
             onClick={() => sendMessage(messageText)}

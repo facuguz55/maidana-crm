@@ -83,7 +83,7 @@ export default function DashboardClient({ initialContacts }: Props) {
   return (
     <div className="flex flex-col h-[100dvh] bg-slate-950 overflow-hidden">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm flex-shrink-0">
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-slate-700 bg-slate-800/90 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/30 flex items-center justify-center">
             <Package size={15} className="text-orange-500" />
@@ -117,7 +117,7 @@ export default function DashboardClient({ initialContacts }: Props) {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por número o nombre..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-sm placeholder:text-slate-600 outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-sm placeholder:text-slate-600 outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all"
           />
         </div>
       </div>
@@ -136,7 +136,7 @@ export default function DashboardClient({ initialContacts }: Props) {
               className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all duration-150 ${
                 isActive
                   ? 'bg-orange-500/15 border-orange-500/40 text-orange-400'
-                  : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700'
+                  : 'bg-slate-900 border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-700'
               }`}
             >
               {tab.label}
@@ -158,7 +158,7 @@ export default function DashboardClient({ initialContacts }: Props) {
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2.5">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center">
               <Users size={22} className="text-slate-600" />
             </div>
             <div>
@@ -189,7 +189,7 @@ function BottomNav({ active }: { active: 'clientes' | 'ventas' }) {
     { key: 'ventas' as const, label: 'Ventas', icon: TrendingUp, path: '/ventas' },
   ]
   return (
-    <div className="flex-shrink-0 bg-slate-900 border-t border-slate-800">
+    <div className="flex-shrink-0 bg-slate-900 border-t border-slate-700">
       <div className="flex">
         {items.map(item => {
           const Icon = item.icon

@@ -20,7 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={geist.variable}>
       <body>
-        {children}
+        <div className="app-shell">
+          {children}
+        </div>
         <Toaster
           theme="dark"
           toastOptions={{
