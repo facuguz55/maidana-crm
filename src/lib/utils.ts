@@ -17,9 +17,15 @@ export function timeAgo(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-  if (diff < 60) return 'hace un momento'
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`
+  // Mismo día → hora exacta
+  if (diff < 86400 && date.getDate() === now.getDate()) {
+    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  }
+  // Ayer
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  if (date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth()) {
+    return `ayer ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`
+  }
   if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
 }

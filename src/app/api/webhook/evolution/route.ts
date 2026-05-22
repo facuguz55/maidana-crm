@@ -24,13 +24,27 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, skipped: 'group or lid' })
       }
 
-      const tiposIgnorar = ['StickerMessage', 'ReactionMessage', 'ProtocolMessage', 'AudioMessage', 'ImageMessage', 'VideoMessage', 'DocumentMessage']
+      // Ignorar eventos sin contenido útil
+      const tiposIgnorar = ['ReactionMessage', 'ProtocolMessage']
       if (tiposIgnorar.includes(info.Type)) {
-        return NextResponse.json({ ok: true, skipped: 'media type' })
+        return NextResponse.json({ ok: true, skipped: 'ignored type' })
       }
 
       const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '')
-      const messageText: string = body.data?.Text || body.data?.text || '[media]'
+
+      // Texto o etiqueta descriptiva del tipo de media
+      const mediaLabels: Record<string, string> = {
+        ImageMessage:    '📷 Imagen',
+        VideoMessage:    '🎥 Video',
+        AudioMessage:    '🎵 Audio',
+        DocumentMessage: '📄 Documento',
+        StickerMessage:  '🔖 Sticker',
+      }
+      const messageText: string =
+        body.data?.Text ||
+        body.data?.text ||
+        mediaLabels[info.Type] ||
+        '[media]'
 
       await upsertContactAndMessage(cleanPhone, messageText)
       return NextResponse.json({ ok: true })
