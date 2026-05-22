@@ -21,7 +21,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside style={{
+    <aside className="app-sidebar" style={{
       width: '220px', flexShrink: 0,
       background: '#0d1526', borderRight: '1px solid #1e2d45',
       display: 'flex', flexDirection: 'column', height: '100vh',
