@@ -41,7 +41,8 @@ export default function SettingsClient({ settings }: Props) {
   async function handleTest() {
     setTestResult(null)
     try {
-      const res = await fetch(`${form.evolution_api_url}/instance/fetchInstances`, { headers: { 'apikey': form.evolution_api_key } })
+      const base = form.evolution_api_url.replace(/\/$/, '')
+      const res = await fetch(`${base}/instance/fetchInstances`, { headers: { 'apikey': form.evolution_api_key } })
       setTestResult(res.ok ? 'ok' : 'error')
     } catch { setTestResult('error') }
   }
