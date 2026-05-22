@@ -38,6 +38,7 @@ export default function ContactCard({ contact }: Props) {
   const cfg = STATUS_CONFIG[contact.status]
   const preview = formatPreview(contact.last_message_preview)
   const phone = formatPhone(contact.phone)
+  const unread = (contact as Contact & { unread?: boolean }).unread === true
 
   function quickAction(e: React.MouseEvent, status: ContactStatus) {
     e.stopPropagation()
@@ -56,9 +57,9 @@ export default function ContactCard({ contact }: Props) {
       className="contact-card"
       onClick={() => router.push(`/contact/${contact.id}`)}
       style={{
-        background: '#1a2539',
+        background: unread ? '#0f1f35' : '#1a2539',
         border: '1px solid #1e2d45',
-        borderLeft: `3px solid ${cfg.dot}`,
+        borderLeft: `3px solid ${unread ? '#f97316' : cfg.dot}`,
         borderRadius: '10px',
         padding: '14px 16px',
         cursor: 'pointer',
@@ -69,15 +70,20 @@ export default function ContactCard({ contact }: Props) {
         gap: '10px',
       }}
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#1e2d45' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = '#1a2539' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? '#0f1f35' : '#1a2539' }}
     >
       {/* === DESKTOP layout === */}
       <div className="card-desktop">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '15px', fontWeight: 700, color: '#f1f5f9', fontFamily: 'monospace', letterSpacing: '0.02em', marginBottom: '2px' }}>
-              {phone}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: unread ? '#ffffff' : '#f1f5f9', fontFamily: 'monospace', letterSpacing: '0.02em', margin: 0 }}>
+                {phone}
+              </p>
+              {unread && (
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f97316', flexShrink: 0, boxShadow: '0 0 6px #f97316' }} />
+              )}
+            </div>
             <span style={{ display: 'inline-block', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}30` }}>
               {cfg.label}
             </span>
@@ -127,10 +133,10 @@ export default function ContactCard({ contact }: Props) {
           {/* Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 600, color: '#f1f5f9', fontFamily: 'monospace', letterSpacing: '0.01em' }}>
+              <span style={{ fontSize: '15px', fontWeight: unread ? 800 : 600, color: unread ? '#ffffff' : '#f1f5f9', fontFamily: 'monospace', letterSpacing: '0.01em' }}>
                 {phone}
               </span>
-              <span style={{ fontSize: '11px', color: '#475569', flexShrink: 0, marginLeft: '8px' }}>
+              <span style={{ fontSize: '11px', color: unread ? '#f97316' : '#475569', flexShrink: 0, marginLeft: '8px', fontWeight: unread ? 700 : 400 }}>
                 {timeAgo(contact.last_message_at)}
               </span>
             </div>
@@ -139,8 +145,11 @@ export default function ContactCard({ contact }: Props) {
             </p>
           </div>
 
-          {/* Dot de estado */}
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
+          {/* Badge no leído o dot de estado */}
+          {unread
+            ? <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f97316', flexShrink: 0, boxShadow: '0 0 6px #f97316' }} />
+            : <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
+          }
         </div>
       </div>
     </div>

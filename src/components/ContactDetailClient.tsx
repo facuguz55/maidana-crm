@@ -43,6 +43,15 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Marcar como leído al abrir el chat
+  useEffect(() => {
+    fetch('/api/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactId: contact.id }),
+    }).catch(() => {})
+  }, [contact.id])
+
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase

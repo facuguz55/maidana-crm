@@ -98,12 +98,12 @@ async function upsertContactAndMessage(phone: string, messageText: string) {
     contactId = existing.id
     await supabase
       .from('contacts')
-      .update({ last_message_at: now, last_message_preview: messageText.slice(0, 100) })
+      .update({ last_message_at: now, last_message_preview: messageText.slice(0, 100), unread: true })
       .eq('id', existing.id)
   } else {
     const { data: inserted } = await supabase
       .from('contacts')
-      .insert({ phone, status: 'nuevo', first_contact_at: now, last_message_at: now, last_message_preview: messageText.slice(0, 100) })
+      .insert({ phone, status: 'nuevo', first_contact_at: now, last_message_at: now, last_message_preview: messageText.slice(0, 100), unread: true })
       .select('id')
       .single()
     contactId = inserted?.id

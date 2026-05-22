@@ -17,15 +17,23 @@ export function timeAgo(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-  // Mismo día → hora exacta
-  if (diff < 86400 && date.getDate() === now.getDate()) {
-    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  if (diff < 60) return 'ahora'
+  if (diff < 3600) {
+    const m = Math.floor(diff / 60)
+    return `hace ${m} min`
   }
-  // Ayer
-  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  if (diff < 86400 && date.getDate() === now.getDate()) {
+    const h = Math.floor(diff / 3600)
+    return `hace ${h} ${h === 1 ? 'hora' : 'hs'}`
+  }
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
   if (date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth()) {
     return `ayer ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`
   }
-  if (diff < 604800) return `hace ${Math.floor(diff / 86400)}d`
+  if (diff < 604800) {
+    const d = Math.floor(diff / 86400)
+    return `hace ${d} ${d === 1 ? 'día' : 'días'}`
+  }
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
 }
