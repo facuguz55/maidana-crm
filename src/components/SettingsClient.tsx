@@ -109,7 +109,7 @@ export default function SettingsClient({ settings }: Props) {
           {/* Evolution API */}
           <Card icon={Zap} iconColor="#f97316" title="Evolution API" subtitle="Configuración de WhatsApp">
             <Field label="URL de la API" value={form.evolution_api_url} onChange={v => update('evolution_api_url', v)} placeholder="https://devgo.santafeia.shop" />
-            <PasswordField label="API Key" value={form.evolution_api_key} onChange={v => update('evolution_api_key', v)} placeholder="tu-api-key" show={showApiKey} onToggle={() => setShowApiKey(!showApiKey)} />
+            <PasswordField label="Token de instancia" value={form.evolution_api_key} onChange={v => update('evolution_api_key', v)} placeholder="fe3a40d6-f1a0-413c-a479-..." show={showApiKey} onToggle={() => setShowApiKey(!showApiKey)} />
             <Field label="Nombre de instancia" value={form.instance_name} onChange={v => update('instance_name', v)} placeholder="marcos_maidana" />
             <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
               <button

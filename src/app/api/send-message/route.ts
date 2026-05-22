@@ -24,18 +24,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Evolution API no configurada' }, { status: 400 })
     }
 
-    // Enviar mensaje via Evolution API
-    const evoRes = await fetch(
-      `${settings.evolution_api_url}/message/sendText/${settings.instance_name}`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey': settings.evolution_api_key,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ number: phone, text }),
-      }
-    )
+    // Enviar mensaje via Evolution GO API
+    const base = settings.evolution_api_url.replace(/\/$/, '')
+    const evoRes = await fetch(`${base}/send/text`, {
+      method: 'POST',
+      headers: {
+        'apikey': settings.evolution_api_key,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ number: phone, text, delay: 0 }),
+    })
 
     if (!evoRes.ok) {
       const errText = await evoRes.text()
