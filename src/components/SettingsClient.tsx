@@ -42,12 +42,10 @@ export default function SettingsClient({ settings }: Props) {
     setTestResult(null)
     try {
       const base = form.evolution_api_url.replace(/\/$/, '')
-      const instance = form.instance_name || ''
-      const url = instance
-        ? `${base}/instance/connectionState/${instance}`
-        : `${base}/instance/fetchInstances`
-      const res = await fetch(url, { headers: { 'apikey': form.evolution_api_key } })
-      setTestResult(res.ok || res.status === 400 ? 'ok' : 'error')
+      const res = await fetch(`${base}/instance/status`, {
+        headers: { 'apikey': form.evolution_api_key },
+      })
+      setTestResult(res.ok ? 'ok' : 'error')
     } catch { setTestResult('error') }
   }
 
