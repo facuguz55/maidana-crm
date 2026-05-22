@@ -29,54 +29,63 @@ html, body {
 }
 
 /* ===== MOBILE ===== */
-.mobile-nav {
-  display: none;
-}
+.mobile-nav { display: none; }
+.card-mobile { display: none; }
+.card-desktop { display: flex; flex-direction: column; gap: 10px; }
 
 @media (max-width: 768px) {
-  /* Ocultar sidebar en mobile */
-  .app-sidebar {
-    display: none !important;
-  }
+  /* Sidebar oculta */
+  .app-sidebar { display: none !important; }
 
-  /* Nav inferior mobile */
+  /* Nav inferior */
   .mobile-nav {
     display: flex;
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 0; left: 0; right: 0;
     background: #0d1526;
     border-top: 1px solid #1e2d45;
     z-index: 100;
     padding-bottom: env(safe-area-inset-bottom);
   }
-
   .mobile-nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 0;
-    text-decoration: none;
-    transition: color 0.15s;
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 10px 0; text-decoration: none; transition: color 0.15s;
   }
 
-  /* Padding bottom para no tapar contenido con el nav */
-  .app-main {
-    padding-bottom: 60px;
+  /* Contenido full width con espacio para nav */
+  .app-main { padding-bottom: 64px; }
+
+  /* Cards: layout WhatsApp en mobile */
+  .card-desktop { display: none !important; }
+  .card-mobile  { display: block !important; }
+
+  /* Cards más compactas y sin bordes redondeados grandes */
+  .contact-card {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid #1e2d45 !important;
+    padding: 12px 16px !important;
+    gap: 0 !important;
+    background: #0f172a !important;
+  }
+  .contact-card:hover { background: #1a2539 !important; }
+
+  /* Grid → lista vertical */
+  div[style*="grid-template-columns"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    padding: 0 !important;
   }
 
   /* Tablas: scroll horizontal */
-  table {
-    min-width: 500px;
-  }
+  table { min-width: 520px; }
 
-  /* Tabla en contenedor scrolleable */
-  .app-main div[style*="overflow-y: auto"] {
-    overflow-x: auto !important;
-  }
+  /* Header más compacto */
+  h1[style*="18px"] { font-size: 16px !important; }
 }
 
 /* Scrollbar */
