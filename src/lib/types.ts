@@ -1,0 +1,61 @@
+export type ContactStatus = 'nuevo' | 'frio' | 'caliente' | 'verificar_pago' | 'pagado'
+export type OrderStatus = 'pendiente' | 'verificado' | 'enviado'
+
+export interface Contact {
+  id: string
+  phone: string
+  name: string | null
+  status: ContactStatus
+  first_contact_at: string
+  last_message_at: string
+  last_message_preview: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface Order {
+  id: string
+  contact_id: string | null
+  name: string
+  phone: string
+  address: string
+  quantity: number
+  status: OrderStatus
+  form_timestamp: string | null
+  created_at: string
+}
+
+export interface Message {
+  id: string
+  contact_id: string
+  body: string
+  direction: 'inbound' | 'outbound'
+  timestamp: string
+}
+
+export interface Settings {
+  id: number
+  evolution_api_url: string
+  evolution_api_key: string
+  instance_name: string
+  google_sheets_id: string
+  sheet_name: string
+  google_api_key: string
+  form_message: string
+}
+
+export const STATUS_LABELS: Record<ContactStatus, string> = {
+  nuevo: 'Nuevo',
+  frio: 'Frío',
+  caliente: 'Caliente',
+  verificar_pago: 'Verificar Pago',
+  pagado: 'Pagado',
+}
+
+export const STATUS_COLORS: Record<ContactStatus, string> = {
+  nuevo: '#3b82f6',
+  frio: '#94a3b8',
+  caliente: '#f97316',
+  verificar_pago: '#f59e0b',
+  pagado: '#22c55e',
+}
