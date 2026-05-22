@@ -48,7 +48,12 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     const channel = supabase
       .channel(`messages-${contact.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `contact_id=eq.${contact.id}` },
-        (payload) => { setMessages(prev => [...prev, payload.new as Message]) })
+        (payload) => {
+          const msg = payload.new as Message
+          // Los mensajes outbound ya se agregan optimisticamente al enviar
+          if (msg.direction === 'outbound') return
+          setMessages(prev => [...prev, msg])
+        })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [contact.id])
