@@ -33,8 +33,33 @@ export default function VentasClient({ initialOrders }: Props) {
   const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
-    const interval = setInterval(() => fetch('/api/sync-sheets', { method: 'POST' }).then(r => r.json()).then(d => { if (d.synced > 0) refreshOrders() }).catch(() => {}), 5 * 60 * 1000)
-    return () => clearInterval(interval)
+    // Realtime en tabla orders
+    const supabase = createClient()
+    const channel = supabase
+      .channel('orders-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        refreshOrders()
+      })
+      .subscribe()
+
+    // Sync Google Sheets cada 5 minutos
+    const interval = setInterval(() => {
+      fetch('/api/sync-sheets', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.synced > 0) refreshOrders() })
+        .catch(() => {})
+    }, 5 * 60 * 1000)
+
+    // Sync inmediato al cargar
+    fetch('/api/sync-sheets', { method: 'POST' })
+      .then(r => r.json())
+      .then(d => { if (d.synced > 0) refreshOrders() })
+      .catch(() => {})
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
   }, [])
 
   async function refreshOrders() {

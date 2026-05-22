@@ -43,6 +43,8 @@ export default function DashboardClient({ initialContacts }: Props) {
         } catch {}
       }).subscribe()
     const syncInterval = setInterval(() => { fetch('/api/sync-sheets', { method: 'POST' }).catch(() => {}) }, 5 * 60 * 1000)
+    // Sync inmediato al cargar
+    fetch('/api/sync-sheets', { method: 'POST' }).catch(() => {})
     return () => { supabase.removeChannel(channel); clearInterval(syncInterval) }
   }, [refreshContacts])
 
