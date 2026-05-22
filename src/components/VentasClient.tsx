@@ -1,7 +1,7 @@
 'use client'
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Download, RefreshCw, MapPin, Phone, TrendingUp, Users, Package } from 'lucide-react'
+import { Search, Download, RefreshCw, Package, Users, Settings, TrendingUp, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateOrderStatus } from '@/app/actions'
 import { createClient } from '@/lib/supabase/client'
@@ -13,16 +13,10 @@ const ORDER_STATUS_NEXT: Record<OrderStatus, OrderStatus> = {
   enviado: 'pendiente',
 }
 
-const ORDER_STATUS_CONFIG: Record<OrderStatus, {
-  color: string
-  bg: string
-  border: string
-  label: string
-  dot: string
-}> = {
-  pendiente: { color: 'text-amber-400', bg: 'bg-amber-500/15', border: 'border-amber-500/30', label: 'Pendiente', dot: 'bg-amber-500' },
-  verificado: { color: 'text-blue-400', bg: 'bg-blue-500/15', border: 'border-blue-500/30', label: 'Verificado', dot: 'bg-blue-500' },
-  enviado: { color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-green-500/30', label: 'Enviado', dot: 'bg-green-500' },
+const STATUS_CFG: Record<OrderStatus, { color: string; bg: string; label: string }> = {
+  pendiente: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', label: 'Pendiente' },
+  verificado: { color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', label: 'Verificado' },
+  enviado: { color: '#22c55e', bg: 'rgba(34,197,94,0.1)', label: 'Enviado' },
 }
 
 const FILTERS: { key: OrderStatus | 'all'; label: string }[] = [
@@ -104,6 +98,12 @@ export default function VentasClient({ initialOrders }: Props) {
     URL.revokeObjectURL(url)
   }
 
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   const filtered = orders
     .filter(o => filter === 'all' ? true : o.status === filter)
     .filter(o => {
@@ -117,172 +117,195 @@ export default function VentasClient({ initialOrders }: Props) {
     counts[f.key] = f.key === 'all' ? orders.length : orders.filter(o => o.status === f.key).length
   }
 
-  const totalUnits = filtered.reduce((acc, o) => acc + o.quantity, 0)
-
   return (
-    <div className="bg-slate-950 h-[100dvh] flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between flex-shrink-0 border-b border-slate-700 bg-slate-800/90 backdrop-blur-sm">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/30 flex items-center justify-center">
-            <TrendingUp size={15} className="text-orange-500" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-slate-100 leading-none">Ventas</h1>
-            <p className="text-[10px] text-slate-500 mt-0.5">{totalUnits} unidades</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleSyncNow}
-            disabled={syncing}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all active:scale-95"
-          >
-            <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-          </button>
-          <button
-            onClick={exportCSV}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all active:scale-95"
-          >
-            <Download size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="px-4 py-3 flex-shrink-0">
-        <div className="relative">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o teléfono..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-sm placeholder:text-slate-600 outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Filter tabs */}
-      <div
-        className="flex gap-2 px-4 pb-3 overflow-x-auto flex-shrink-0"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {FILTERS.map(f => {
-          const isActive = filter === f.key
-          return (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all duration-150 ${
-                isActive
-                  ? 'bg-orange-500/15 border-orange-500/40 text-orange-400'
-                  : 'bg-slate-900 border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-700'
-              }`}
-            >
-              {f.label}
-              {counts[f.key] > 0 && (
-                <span
-                  className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-none ${
-                    isActive ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-500'
-                  }`}
-                >
-                  {counts[f.key]}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Orders list */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2.5">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center">
-              <Package size={22} className="text-slate-600" />
+    <div style={{ display: 'flex', height: '100vh', background: '#0f172a' }}>
+      {/* Sidebar */}
+      <aside style={{
+        width: '220px', flexShrink: 0,
+        background: '#0d1526', borderRight: '1px solid #1e2d45',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #1e2d45' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Package size={18} color="#f97316" />
             </div>
-            <p className="text-slate-500 text-sm font-medium">
-              {search ? 'Sin resultados' : 'No hay órdenes aquí'}
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc' }}>Maidana</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>CRM</div>
+            </div>
+          </div>
+        </div>
+        <nav style={{ flex: 1, padding: '12px 10px' }}>
+          <NavItem icon={Users} label="Clientes" onClick={() => router.push('/')} />
+          <NavItem icon={TrendingUp} label="Ventas" active onClick={() => router.push('/ventas')} />
+          <NavItem icon={Settings} label="Configuración" onClick={() => router.push('/settings')} />
+        </nav>
+        <div style={{ padding: '12px 10px', borderTop: '1px solid #1e2d45' }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '9px 12px', borderRadius: '8px', border: 'none',
+              background: 'transparent', color: '#64748b', fontSize: '13px', cursor: 'pointer',
+            }}
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Top bar */}
+        <div style={{
+          padding: '16px 24px', borderBottom: '1px solid #1e2d45',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#0f172a', flexShrink: 0,
+        }}>
+          <div>
+            <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#f8fafc' }}>Ventas</h1>
+            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              {orders.reduce((a, o) => a + o.quantity, 0)} unidades en total
             </p>
           </div>
-        ) : (
-          filtered.map(order => {
-            const cfg = ORDER_STATUS_CONFIG[order.status]
-            return (
-              <div
-                key={order.id}
-                className="bg-slate-900 border border-slate-700 rounded-xl p-3.5 transition-all hover:border-slate-700"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-slate-100 mb-1.5">{order.name}</p>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Phone size={10} className="text-slate-600 flex-shrink-0" />
-                      <span className="text-xs text-slate-500">{order.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <MapPin size={10} className="text-slate-600 flex-shrink-0" />
-                      <span className="text-xs text-slate-600 truncate">{order.address}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className="font-bold text-orange-400 text-sm">{order.quantity} uds</span>
-                    <span className="text-[10px] text-slate-600">
-                      {new Date(order.created_at).toLocaleDateString('es-AR')}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <button
-                    onClick={() => handleStatusToggle(order)}
-                    disabled={isPending}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all active:scale-95 hover:opacity-80 ${cfg.bg} ${cfg.border} ${cfg.color}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                    {cfg.label}
-                    <span className="text-slate-600 text-[10px]">→ siguiente</span>
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar orden..."
+                style={{
+                  paddingLeft: '36px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px',
+                  background: '#1e293b', border: '1px solid #1e2d45',
+                  borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none', width: '240px',
+                }}
+              />
+            </div>
+            <button
+              onClick={handleSyncNow}
+              disabled={syncing}
+              style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}
+            >
+              <RefreshCw size={15} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+            <button
+              onClick={exportCSV}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', fontSize: '13px' }}
+            >
+              <Download size={14} />
+              Exportar CSV
+            </button>
+          </div>
+        </div>
 
-      <BottomNav active="ventas" />
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: '4px', padding: '12px 24px', borderBottom: '1px solid #1e2d45', flexShrink: 0 }}>
+          {FILTERS.map(f => {
+            const isActive = filter === f.key
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: 500,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  background: isActive ? 'rgba(249,115,22,0.12)' : 'transparent',
+                  border: isActive ? '1px solid rgba(249,115,22,0.35)' : '1px solid transparent',
+                  color: isActive ? '#f97316' : '#64748b',
+                }}
+              >
+                {f.label}
+                {counts[f.key] > 0 && (
+                  <span style={{ background: isActive ? '#f97316' : '#1e293b', color: isActive ? '#fff' : '#64748b', borderRadius: '999px', padding: '1px 7px', fontSize: '11px', fontWeight: 700 }}>
+                    {counts[f.key]}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Table */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+          {filtered.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
+              <Package size={28} color="#334155" />
+              <p style={{ color: '#64748b', fontSize: '14px' }}>No hay órdenes en esta categoría</p>
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #1e2d45' }}>
+                  {['Nombre', 'Teléfono', 'Dirección', 'Cantidad', 'Estado', 'Fecha'].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(order => {
+                  const cfg = STATUS_CFG[order.status]
+                  return (
+                    <tr
+                      key={order.id}
+                      style={{ borderBottom: '1px solid #1e2d45', transition: 'background 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = '#1e293b'}
+                      onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '12px', fontSize: '13px', fontWeight: 600, color: '#f8fafc' }}>{order.name}</td>
+                      <td style={{ padding: '12px', fontSize: '13px', color: '#94a3b8' }}>{order.phone}</td>
+                      <td style={{ padding: '12px', fontSize: '13px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.address}</td>
+                      <td style={{ padding: '12px', fontSize: '13px', fontWeight: 700, color: '#f97316' }}>{order.quantity} uds</td>
+                      <td style={{ padding: '12px' }}>
+                        <button
+                          onClick={() => handleStatusToggle(order)}
+                          disabled={isPending}
+                          style={{
+                            padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600,
+                            background: cfg.bg, color: cfg.color,
+                            border: `1px solid ${cfg.color}40`, cursor: 'pointer', transition: 'opacity 0.15s',
+                          }}
+                        >
+                          {cfg.label} →
+                        </button>
+                      </td>
+                      <td style={{ padding: '12px', fontSize: '12px', color: '#475569' }}>
+                        {new Date(order.created_at).toLocaleDateString('es-AR')}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </main>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
 
-function BottomNav({ active }: { active: 'clientes' | 'ventas' }) {
-  const router = useRouter()
-  const items = [
-    { key: 'clientes' as const, label: 'Clientes', icon: Users, path: '/' },
-    { key: 'ventas' as const, label: 'Ventas', icon: TrendingUp, path: '/ventas' },
-  ]
+function NavItem({ icon: Icon, label, active, onClick }: { icon: React.ElementType; label: string; active?: boolean; onClick: () => void }) {
   return (
-    <div className="flex-shrink-0 bg-slate-900 border-t border-slate-700">
-      <div className="flex">
-        {items.map(item => {
-          const Icon = item.icon
-          const isActive = active === item.key
-          return (
-            <button
-              key={item.key}
-              onClick={() => router.push(item.path)}
-              className={`relative flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
-                isActive ? 'text-orange-500' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-b-full" />
-              )}
-              <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
-              <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '9px 12px', borderRadius: '8px', marginBottom: '2px',
+        border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: active ? 600 : 400,
+        background: active ? 'rgba(249,115,22,0.1)' : 'transparent',
+        color: active ? '#f97316' : '#94a3b8', transition: 'all 0.15s',
+      }}
+    >
+      <Icon size={16} />
+      {label}
+    </button>
   )
 }

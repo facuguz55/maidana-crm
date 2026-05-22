@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Settings, RefreshCw, Package, Users, TrendingUp } from 'lucide-react'
+import { Search, Settings, RefreshCw, Package, Users, TrendingUp, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import ContactCard from './ContactCard'
 import type { Contact, ContactStatus } from '@/lib/types'
@@ -9,7 +9,7 @@ import type { Contact, ContactStatus } from '@/lib/types'
 const TABS: { key: ContactStatus | 'all'; label: string }[] = [
   { key: 'nuevo', label: 'Nuevos' },
   { key: 'caliente', label: 'Calientes' },
-  { key: 'verificar_pago', label: 'Verificar' },
+  { key: 'verificar_pago', label: 'Verificar pago' },
   { key: 'pagado', label: 'Pagados' },
   { key: 'frio', label: 'Fríos' },
 ]
@@ -80,137 +80,194 @@ export default function DashboardClient({ initialContacts }: Props) {
       return c.phone.includes(q) || (c.name?.toLowerCase().includes(q) ?? false)
     })
 
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   return (
-    <div className="flex flex-col h-[100dvh] bg-slate-950 overflow-hidden">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-slate-700 bg-slate-800/90 backdrop-blur-sm flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/30 flex items-center justify-center">
-            <Package size={15} className="text-orange-500" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-slate-100 leading-none">Maidana CRM</h1>
-            <p className="text-[10px] text-slate-500 mt-0.5">{contacts.length} contactos</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={refreshContacts}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all active:scale-95"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button
-            onClick={() => router.push('/settings')}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all active:scale-95"
-          >
-            <Settings size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="px-4 py-3 flex-shrink-0">
-        <div className="relative">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por número o nombre..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-sm placeholder:text-slate-600 outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div
-        className="flex gap-2 px-4 pb-3 overflow-x-auto flex-shrink-0"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {TABS.map(tab => {
-          const isActive = activeTab === tab.key
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all duration-150 ${
-                isActive
-                  ? 'bg-orange-500/15 border-orange-500/40 text-orange-400'
-                  : 'bg-slate-900 border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-700'
-              }`}
-            >
-              {tab.label}
-              {counts[tab.key] > 0 && (
-                <span
-                  className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-none ${
-                    isActive ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-500'
-                  }`}
-                >
-                  {counts[tab.key]}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Contact list */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2.5">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center">
-              <Users size={22} className="text-slate-600" />
+    <div style={{ display: 'flex', height: '100vh', background: '#0f172a' }}>
+      {/* Sidebar */}
+      <aside style={{
+        width: '220px', flexShrink: 0,
+        background: '#0d1526',
+        borderRight: '1px solid #1e2d45',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Logo */}
+        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #1e2d45' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Package size={18} color="#f97316" />
             </div>
             <div>
-              <p className="text-slate-500 text-sm font-medium">
-                {search ? 'Sin resultados' : 'Esta categoría está vacía'}
-              </p>
-              {search && (
-                <p className="text-slate-600 text-xs mt-1">&quot;{search}&quot; no encontrado</p>
-              )}
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc' }}>Maidana</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>CRM</div>
             </div>
           </div>
-        ) : (
-          filtered.map(contact => (
-            <ContactCard key={contact.id} contact={contact} />
-          ))
-        )}
-      </div>
+        </div>
 
-      <BottomNav active="clientes" />
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '12px 10px' }}>
+          <NavItem icon={Users} label="Clientes" active onClick={() => router.push('/')} />
+          <NavItem icon={TrendingUp} label="Ventas" onClick={() => router.push('/ventas')} />
+          <NavItem icon={Settings} label="Configuración" onClick={() => router.push('/settings')} />
+        </nav>
+
+        {/* Bottom */}
+        <div style={{ padding: '12px 10px', borderTop: '1px solid #1e2d45' }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '9px 12px', borderRadius: '8px', border: 'none',
+              background: 'transparent', color: '#64748b', fontSize: '13px',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#ef4444' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#64748b' }}
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Top bar */}
+        <div style={{
+          padding: '16px 24px', borderBottom: '1px solid #1e2d45',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#0f172a', flexShrink: 0,
+        }}>
+          <div>
+            <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#f8fafc' }}>Contactos</h1>
+            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+              {contacts.length} contactos en total
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar contacto..."
+                style={{
+                  paddingLeft: '36px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px',
+                  background: '#1e293b', border: '1px solid #1e2d45',
+                  borderRadius: '8px', color: '#f8fafc', fontSize: '13px',
+                  outline: 'none', width: '260px',
+                }}
+              />
+            </div>
+            <button
+              onClick={refreshContacts}
+              style={{
+                padding: '8px', background: '#1e293b', border: '1px solid #1e2d45',
+                borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex',
+              }}
+            >
+              <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{
+          display: 'flex', gap: '4px', padding: '12px 24px',
+          borderBottom: '1px solid #1e2d45', background: '#0f172a', flexShrink: 0,
+        }}>
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.key
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: 500,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  background: isActive ? 'rgba(249,115,22,0.12)' : 'transparent',
+                  border: isActive ? '1px solid rgba(249,115,22,0.35)' : '1px solid transparent',
+                  color: isActive ? '#f97316' : '#64748b',
+                }}
+              >
+                {tab.label}
+                {counts[tab.key] > 0 && (
+                  <span style={{
+                    background: isActive ? '#f97316' : '#1e293b',
+                    color: isActive ? '#fff' : '#64748b',
+                    borderRadius: '999px', padding: '1px 7px',
+                    fontSize: '11px', fontWeight: 700,
+                  }}>
+                    {counts[tab.key]}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Contact grid */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+          {filtered.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: '#1e293b', border: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={22} color="#475569" />
+              </div>
+              <p style={{ color: '#64748b', fontSize: '14px' }}>
+                {search ? `Sin resultados para "${search}"` : 'No hay contactos en esta categoría'}
+              </p>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: '12px',
+            }}>
+              {filtered.map(contact => (
+                <ContactCard key={contact.id} contact={contact} />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
 
-function BottomNav({ active }: { active: 'clientes' | 'ventas' }) {
-  const router = useRouter()
-  const items = [
-    { key: 'clientes' as const, label: 'Clientes', icon: Users, path: '/' },
-    { key: 'ventas' as const, label: 'Ventas', icon: TrendingUp, path: '/ventas' },
-  ]
+function NavItem({ icon: Icon, label, active, onClick }: {
+  icon: React.ElementType
+  label: string
+  active?: boolean
+  onClick: () => void
+}) {
   return (
-    <div className="flex-shrink-0 bg-slate-900 border-t border-slate-700">
-      <div className="flex">
-        {items.map(item => {
-          const Icon = item.icon
-          const isActive = active === item.key
-          return (
-            <button
-              key={item.key}
-              onClick={() => router.push(item.path)}
-              className={`relative flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
-                isActive ? 'text-orange-500' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-b-full" />
-              )}
-              <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
-              <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '9px 12px', borderRadius: '8px', marginBottom: '2px',
+        border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: active ? 600 : 400,
+        background: active ? 'rgba(249,115,22,0.1)' : 'transparent',
+        color: active ? '#f97316' : '#94a3b8',
+        transition: 'all 0.15s',
+      }}
+      onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLButtonElement).style.color = '#f8fafc' } }}
+      onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#94a3b8' } }}
+    >
+      <Icon size={16} />
+      {label}
+    </button>
   )
 }

@@ -13,22 +13,20 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={geist.variable}>
       <body>
-        <div className="app-shell">
-          {children}
-        </div>
+        {children}
         <Toaster
           theme="dark"
+          position="top-right"
           toastOptions={{
             style: {
               background: "#1e293b",
-              border: "1px solid #334155",
+              border: "1px solid #1e2d45",
               color: "#f8fafc",
             },
           }}

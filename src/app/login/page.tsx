@@ -16,7 +16,11 @@ export default function LoginPage() {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      toast.error('Contraseña incorrecta')
+      if (error.message.toLowerCase().includes('fetch') || error.status === 0) {
+        toast.error('Sin conexión a internet. Verificá tu red.')
+      } else {
+        toast.error('Contraseña incorrecta')
+      }
       setLoading(false)
       return
     }
