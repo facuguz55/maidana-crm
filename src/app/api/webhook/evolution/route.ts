@@ -16,6 +16,10 @@ export async function POST(req: NextRequest) {
     // event: "Message", data.Info.Chat, data.Info.IsFromMe, data.Text
     if (event === 'Message' || event === 'message') {
       const info = body.data?.Info
+      // Log para ver estructura exacta del payload
+      console.log('[webhook] data keys:', JSON.stringify(Object.keys(body.data || {})))
+      console.log('[webhook] Message keys:', JSON.stringify(Object.keys(body.data?.Message || {})))
+      console.log('[webhook] Info.Type:', info?.Type, '| Text candidates:', JSON.stringify({ T: body.data?.Text, M_C: body.data?.Message?.Conversation, M_B: body.data?.Body }))
       if (!info) return NextResponse.json({ ok: true, skipped: 'no info' })
       if (info.IsFromMe === true) return NextResponse.json({ ok: true, skipped: 'own' })
 
@@ -43,6 +47,11 @@ export async function POST(req: NextRequest) {
       const messageText: string =
         body.data?.Text ||
         body.data?.text ||
+        body.data?.Message?.Conversation ||
+        body.data?.Message?.conversation ||
+        body.data?.Message?.ExtendedTextMessage?.Text ||
+        body.data?.Message?.extendedTextMessage?.text ||
+        body.data?.message?.conversation ||
         mediaLabels[info.Type] ||
         '[media]'
 
