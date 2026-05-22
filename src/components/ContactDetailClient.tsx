@@ -8,20 +8,28 @@ import { createClient } from '@/lib/supabase/client'
 import { formatPhone, timeAgo } from '@/lib/utils'
 import type { Contact, ContactStatus, Order, Message } from '@/lib/types'
 
-const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
-  { value: 'nuevo', label: 'Nuevo' },
-  { value: 'frio', label: 'Frío' },
-  { value: 'caliente', label: 'Caliente' },
-  { value: 'verificar_pago', label: 'Verificar Pago' },
-  { value: 'pagado', label: 'Pagado' },
+const STATUS_OPTIONS: { value: ContactStatus; label: string; color: string; bg: string; border: string }[] = [
+  { value: 'nuevo', label: 'Nuevo', color: 'text-blue-400', bg: 'bg-blue-500/15', border: 'border-blue-500/40' },
+  { value: 'frio', label: 'Frío', color: 'text-slate-400', bg: 'bg-slate-700/40', border: 'border-slate-600/40' },
+  { value: 'caliente', label: 'Caliente', color: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-orange-500/40' },
+  { value: 'verificar_pago', label: 'Verificar Pago', color: 'text-amber-400', bg: 'bg-amber-500/15', border: 'border-amber-500/40' },
+  { value: 'pagado', label: 'Pagado', color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-green-500/40' },
 ]
 
-const STATUS_COLORS: Record<ContactStatus, string> = {
-  nuevo: '#3b82f6',
-  frio: '#94a3b8',
-  caliente: '#f97316',
-  verificar_pago: '#f59e0b',
-  pagado: '#22c55e',
+const STATUS_DOT: Record<ContactStatus, string> = {
+  nuevo: 'bg-blue-500',
+  frio: 'bg-slate-500',
+  caliente: 'bg-orange-500',
+  verificar_pago: 'bg-amber-500',
+  pagado: 'bg-green-500',
+}
+
+const STATUS_AVATAR: Record<ContactStatus, { color: string; bg: string; border: string }> = {
+  nuevo: { color: 'text-blue-400', bg: 'bg-blue-500/15', border: 'border-blue-500/30' },
+  frio: { color: 'text-slate-400', bg: 'bg-slate-700/40', border: 'border-slate-600/30' },
+  caliente: { color: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-orange-500/30' },
+  verificar_pago: { color: 'text-amber-400', bg: 'bg-amber-500/15', border: 'border-amber-500/30' },
+  pagado: { color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-green-500/30' },
 }
 
 interface Props {
@@ -38,19 +46,15 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   const [copied, setCopied] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [showPlanilla, setShowPlanilla] = useState(false)
-
-  // Chat state
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [messageText, setMessageText] = useState('')
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll al fondo cuando llegan nuevos mensajes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Realtime subscription para mensajes
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
@@ -81,7 +85,6 @@ export default function ContactDetailClient({ contact: initialContact, order, in
         toast.error(err.error || 'Error al enviar')
         return
       }
-      // Agregar mensaje localmente (el realtime también lo captará)
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         contact_id: contact.id,
@@ -164,50 +167,56 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
   }
 
+  const avatarCfg = STATUS_AVATAR[contact.status]
+  const displayName = contact.name || formatPhone(contact.phone)
+  const initials = displayName.slice(0, 2).toUpperCase()
+
   return (
-    <div style={{ background: '#0f172a', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="bg-slate-950 h-[100dvh] flex flex-col overflow-hidden">
       {/* Header */}
-      <div style={{ padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #334155', background: '#1e293b', flexShrink: 0 }}>
+      <div className="flex-shrink-0 px-4 py-3 flex items-center gap-3 bg-slate-900/90 backdrop-blur-sm border-b border-slate-800">
         <button
           onClick={() => router.back()}
-          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem', display: 'flex' }}
+          className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all active:scale-95"
         >
-          <ArrowLeft size={22} />
+          <ArrowLeft size={20} />
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: STATUS_COLORS[contact.status], flexShrink: 0 }} />
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {contact.name || formatPhone(contact.phone)}
-            </span>
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div
+            className={`flex-shrink-0 w-9 h-9 rounded-xl ${avatarCfg.bg} border ${avatarCfg.border} flex items-center justify-center`}
+          >
+            <span className={`text-sm font-bold ${avatarCfg.color}`}>{initials}</span>
           </div>
-          <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.125rem' }}>
-            {formatPhone(contact.phone)} · {timeAgo(contact.last_message_at)}
-          </p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[contact.status]}`} />
+              <span className="font-bold text-sm text-slate-100 truncate">{displayName}</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              {formatPhone(contact.phone)} · {timeAgo(contact.last_message_at)}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Scrollable body */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        {/* Info sections */}
-        <div style={{ padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-3">
 
-          {/* Status */}
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', padding: '0.875rem' }}>
-            <h2 style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.625rem' }}>Estado</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+          {/* Status selector */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+            <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Estado</h2>
+            <div className="flex flex-wrap gap-2">
               {STATUS_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => handleStatusChange(opt.value)}
                   disabled={isPending}
-                  style={{
-                    padding: '0.4rem 0.75rem', borderRadius: '0.5rem',
-                    border: contact.status === opt.value ? `2px solid ${STATUS_COLORS[opt.value]}` : '1px solid #334155',
-                    background: contact.status === opt.value ? `${STATUS_COLORS[opt.value]}20` : 'transparent',
-                    color: contact.status === opt.value ? STATUS_COLORS[opt.value] : '#94a3b8',
-                    fontSize: '0.78rem', fontWeight: contact.status === opt.value ? 700 : 400, cursor: 'pointer',
-                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all active:scale-95 ${
+                    contact.status === opt.value
+                      ? `${opt.bg} ${opt.border} ${opt.color}`
+                      : 'bg-slate-800/50 border-slate-700/50 text-slate-500 hover:text-slate-300 hover:border-slate-600'
+                  }`}
                 >
                   {opt.label}
                 </button>
@@ -215,12 +224,12 @@ export default function ContactDetailClient({ contact: initialContact, order, in
             </div>
           </div>
 
-          {/* Confirm pago */}
+          {/* Confirmar pago */}
           {contact.status === 'verificar_pago' && !showPlanilla && (
             <button
               onClick={handleConfirmPago}
               disabled={isPending}
-              style={{ width: '100%', padding: '0.875rem', background: '#22c55e', border: 'none', borderRadius: '0.75rem', color: '#fff', fontSize: '1rem', fontWeight: 700, cursor: 'pointer' }}
+              className="w-full py-3.5 bg-green-500 hover:bg-green-400 rounded-xl text-white text-sm font-bold transition-all active:scale-[0.99] shadow-lg shadow-green-500/20"
             >
               ✅ Confirmar Pago
             </button>
@@ -228,40 +237,32 @@ export default function ContactDetailClient({ contact: initialContact, order, in
 
           {/* Planilla */}
           {(showPlanilla || contact.status === 'pagado') && !order && (
-            <div style={{ background: '#1e293b', border: '1px solid #f59e0b50', borderRadius: '0.75rem', padding: '0.875rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.625rem' }}>
-                <h2 style={{ color: '#f59e0b', fontSize: '0.85rem', fontWeight: 700 }}>📋 Planilla para enviar</h2>
+            <div className="bg-slate-900 border border-amber-500/20 rounded-xl p-3.5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-amber-400 text-sm font-bold">📋 Planilla para enviar</h2>
                 <button
                   onClick={copyPlanilla}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.3rem',
-                    padding: '0.4rem 0.625rem',
-                    background: copied ? '#22c55e20' : 'rgba(249, 115, 22, 0.15)',
-                    border: `1px solid ${copied ? '#22c55e40' : 'rgba(249, 115, 22, 0.4)'}`,
-                    borderRadius: '0.5rem', color: copied ? '#22c55e' : '#f97316',
-                    fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all active:scale-95 ${
+                    copied
+                      ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                      : 'bg-orange-500/15 border-orange-500/30 text-orange-400 hover:bg-orange-500/25'
+                  }`}
                 >
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
                   {copied ? 'Copiado' : 'Copiar'}
                 </button>
               </div>
-              <pre style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '0.5rem', padding: '0.75rem', color: '#94a3b8', fontSize: '0.82rem', whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6 }}>
-{`Para completar tu pedido, respondé con este formato:
-
-Nombre:
-Dirección:
-Cantidad:
-Teléfono: `}
+              <pre className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-400 text-xs whitespace-pre-wrap font-mono leading-relaxed">
+{`Para completar tu pedido, respondé con este formato:\n\nNombre:\nDirección:\nCantidad:\nTeléfono:`}
               </pre>
             </div>
           )}
 
           {/* Orden registrada */}
           {order && (
-            <div style={{ background: '#1e293b', border: '1px solid #22c55e50', borderRadius: '0.75rem', padding: '0.875rem' }}>
-              <h2 style={{ color: '#22c55e', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.625rem' }}>📦 Orden registrada</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <div className="bg-slate-900 border border-green-500/20 rounded-xl p-3.5">
+              <h2 className="text-green-400 text-sm font-bold mb-3">📦 Orden registrada</h2>
+              <div className="space-y-2">
                 <Row label="Nombre" value={order.name} />
                 <Row label="Dirección" value={order.address} />
                 <Row label="Cantidad" value={`${order.quantity} álbumes`} />
@@ -272,92 +273,76 @@ Teléfono: `}
           )}
 
           {/* Notas */}
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', padding: '0.875rem' }}>
-            <h2 style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.625rem' }}>Notas internas</h2>
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+            <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Notas internas</h2>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Escribí notas sobre este contacto..."
               rows={3}
-              style={{ width: '100%', padding: '0.625rem', background: '#0f172a', border: '1px solid #334155', borderRadius: '0.5rem', color: '#f8fafc', fontSize: '0.875rem', resize: 'vertical', outline: 'none', fontFamily: 'inherit' }}
+              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 transition-all font-sans"
             />
             <button
               onClick={handleSaveNotes}
               disabled={isPending}
-              style={{ marginTop: '0.5rem', padding: '0.5rem 1rem', background: notesSaved ? '#22c55e20' : 'rgba(249, 115, 22, 0.15)', border: `1px solid ${notesSaved ? '#22c55e40' : 'rgba(249, 115, 22, 0.4)'}`, borderRadius: '0.5rem', color: notesSaved ? '#22c55e' : '#f97316', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+              className={`mt-2.5 px-4 py-2 rounded-lg text-xs font-semibold border transition-all active:scale-95 ${
+                notesSaved
+                  ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                  : 'bg-orange-500/15 border-orange-500/30 text-orange-400 hover:bg-orange-500/25'
+              }`}
             >
               {notesSaved ? '✅ Guardado' : 'Guardar notas'}
             </button>
           </div>
 
-          {/* Separador Chat */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ flex: 1, height: '1px', background: '#334155' }} />
-            <span style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>CONVERSACIÓN</span>
-            <div style={{ flex: 1, height: '1px', background: '#334155' }} />
+          {/* Separador */}
+          <div className="flex items-center gap-3 py-1">
+            <div className="flex-1 h-px bg-slate-800" />
+            <span className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em]">Conversación</span>
+            <div className="flex-1 h-px bg-slate-800" />
           </div>
         </div>
 
-        {/* Messages list */}
-        <div style={{ padding: '0 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {/* Messages */}
+        <div className="px-4 pb-3 space-y-2">
           {messages.length === 0 && (
-            <p style={{ textAlign: 'center', color: '#475569', fontSize: '0.8rem', padding: '1.5rem 0' }}>Sin mensajes aún</p>
+            <p className="text-center text-slate-600 text-xs py-8">Sin mensajes aún</p>
           )}
           {messages.map(msg => (
             <div
               key={msg.id}
-              style={{
-                display: 'flex',
-                justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start',
-              }}
+              className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                style={{
-                  maxWidth: '78%',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: msg.direction === 'outbound' ? '1rem 1rem 0.25rem 1rem' : '1rem 1rem 1rem 0.25rem',
-                  background: msg.direction === 'outbound' ? '#f97316' : '#1e293b',
-                  border: msg.direction === 'outbound' ? 'none' : '1px solid #334155',
-                  color: msg.direction === 'outbound' ? '#fff' : '#f8fafc',
-                  fontSize: '0.875rem',
-                  lineHeight: 1.4,
-                  wordBreak: 'break-word',
-                }}
+                className={`max-w-[78%] px-3.5 py-2.5 text-sm leading-snug break-words ${
+                  msg.direction === 'outbound'
+                    ? 'bg-orange-500 text-white rounded-2xl rounded-br-sm shadow-lg shadow-orange-500/20'
+                    : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-2xl rounded-bl-sm'
+                }`}
               >
                 <p>{msg.body}</p>
-                <p style={{ fontSize: '0.68rem', opacity: 0.7, marginTop: '0.25rem', textAlign: 'right' }}>
+                <p className={`text-[10px] mt-1 text-right ${msg.direction === 'outbound' ? 'text-orange-100/60' : 'text-slate-600'}`}>
                   {formatMsgTime(msg.timestamp)}
                 </p>
               </div>
             </div>
           ))}
-          <div ref={messagesEndRef} style={{ height: '0.5rem' }} />
+          <div ref={messagesEndRef} className="h-2" />
         </div>
       </div>
 
-      {/* Chat input bar — fijo al fondo */}
-      <div style={{ flexShrink: 0, background: '#1e293b', borderTop: '1px solid #334155', padding: '0.625rem 0.875rem' }}>
-        {/* Botón enviar formulario */}
+      {/* Chat input bar */}
+      <div className="flex-shrink-0 bg-slate-900 border-t border-slate-800 p-3 space-y-2">
         <button
           onClick={handleSendForm}
           disabled={sending}
-          style={{
-            width: '100%', marginBottom: '0.5rem',
-            padding: '0.5rem',
-            background: 'rgba(59, 130, 246, 0.15)',
-            border: '1px solid rgba(59, 130, 246, 0.4)',
-            borderRadius: '0.5rem',
-            color: '#3b82f6',
-            fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem',
-          }}
+          className="w-full py-2 px-4 bg-blue-500/15 border border-blue-500/30 rounded-xl text-blue-400 text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:bg-blue-500/25 active:scale-[0.99]"
         >
-          <FileText size={14} />
+          <FileText size={13} />
           Enviar Formulario
         </button>
 
-        {/* Input de texto */}
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+        <div className="flex gap-2 items-end">
           <textarea
             value={messageText}
             onChange={e => setMessageText(e.target.value)}
@@ -369,28 +354,19 @@ Teléfono: `}
             }}
             placeholder="Escribí un mensaje..."
             rows={1}
-            style={{
-              flex: 1, padding: '0.625rem 0.75rem',
-              background: '#0f172a', border: '1px solid #334155',
-              borderRadius: '0.75rem', color: '#f8fafc',
-              fontSize: '0.9rem', outline: 'none',
-              resize: 'none', fontFamily: 'inherit',
-              lineHeight: 1.4, maxHeight: '120px', overflowY: 'auto',
-            }}
+            style={{ maxHeight: '120px' }}
+            className="flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm resize-none outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-600 font-sans leading-snug overflow-y-auto transition-all"
           />
           <button
             onClick={() => sendMessage(messageText)}
             disabled={sending || !messageText.trim()}
-            style={{
-              padding: '0.625rem',
-              background: messageText.trim() && !sending ? '#f97316' : '#334155',
-              border: 'none', borderRadius: '0.75rem',
-              color: '#fff', cursor: messageText.trim() && !sending ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, transition: 'background 0.15s',
-            }}
+            className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all active:scale-95 ${
+              messageText.trim() && !sending
+                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25 hover:bg-orange-400'
+                : 'bg-slate-800 text-slate-600'
+            }`}
           >
-            <Send size={18} />
+            <Send size={16} />
           </button>
         </div>
       </div>
@@ -400,9 +376,9 @@ Teléfono: `}
 
 function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', fontSize: '0.875rem' }}>
-      <span style={{ color: '#64748b', flexShrink: 0 }}>{label}</span>
-      <span style={{ color: highlight ? '#f97316' : '#f8fafc', textAlign: 'right', fontWeight: highlight ? 600 : 400 }}>{value}</span>
+    <div className="flex justify-between gap-4 text-sm">
+      <span className="text-slate-500 flex-shrink-0">{label}</span>
+      <span className={`${highlight ? 'text-orange-400 font-semibold' : 'text-slate-200'} text-right`}>{value}</span>
     </div>
   )
 }

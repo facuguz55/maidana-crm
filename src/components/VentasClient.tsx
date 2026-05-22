@@ -1,7 +1,7 @@
 'use client'
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Download, RefreshCw } from 'lucide-react'
+import { Search, Download, RefreshCw, MapPin, Phone, TrendingUp, Users, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateOrderStatus } from '@/app/actions'
 import { createClient } from '@/lib/supabase/client'
@@ -13,16 +13,16 @@ const ORDER_STATUS_NEXT: Record<OrderStatus, OrderStatus> = {
   enviado: 'pendiente',
 }
 
-const ORDER_STATUS_COLOR: Record<OrderStatus, string> = {
-  pendiente: '#f59e0b',
-  verificado: '#3b82f6',
-  enviado: '#22c55e',
-}
-
-const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
-  pendiente: 'Pendiente',
-  verificado: 'Verificado',
-  enviado: 'Enviado',
+const ORDER_STATUS_CONFIG: Record<OrderStatus, {
+  color: string
+  bg: string
+  border: string
+  label: string
+  dot: string
+}> = {
+  pendiente: { color: 'text-amber-400', bg: 'bg-amber-500/15', border: 'border-amber-500/30', label: 'Pendiente', dot: 'bg-amber-500' },
+  verificado: { color: 'text-blue-400', bg: 'bg-blue-500/15', border: 'border-blue-500/30', label: 'Verificado', dot: 'bg-blue-500' },
+  enviado: { color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-green-500/30', label: 'Enviado', dot: 'bg-green-500' },
 }
 
 const FILTERS: { key: OrderStatus | 'all'; label: string }[] = [
@@ -42,12 +42,12 @@ export default function VentasClient({ initialOrders }: Props) {
   const [isPending, startTransition] = useTransition()
   const [syncing, setSyncing] = useState(false)
 
-  // Auto-sync Google Sheets cada 5 minutos
   useEffect(() => {
-    const sync = () => fetch('/api/sync-sheets', { method: 'POST' })
-      .then(r => r.json())
-      .then(d => { if (d.synced > 0) refreshOrders() })
-      .catch(() => {})
+    const sync = () =>
+      fetch('/api/sync-sheets', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.synced > 0) refreshOrders() })
+        .catch(() => {})
     const interval = setInterval(sync, 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
@@ -91,11 +91,7 @@ export default function VentasClient({ initialOrders }: Props) {
   function exportCSV() {
     const headers = ['Nombre', 'Teléfono', 'Dirección', 'Cantidad', 'Estado', 'Fecha']
     const rows = filtered.map(o => [
-      o.name,
-      o.phone,
-      o.address,
-      o.quantity.toString(),
-      o.status,
+      o.name, o.phone, o.address, o.quantity.toString(), o.status,
       new Date(o.created_at).toLocaleDateString('es-AR'),
     ])
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
@@ -121,126 +117,172 @@ export default function VentasClient({ initialOrders }: Props) {
     counts[f.key] = f.key === 'all' ? orders.length : orders.filter(o => o.status === f.key).length
   }
 
+  const totalUnits = filtered.reduce((acc, o) => acc + o.quantity, 0)
+
   return (
-    <div style={{ background: '#0f172a', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div className="bg-slate-950 h-[100dvh] flex flex-col overflow-hidden">
       {/* Header */}
-      <div style={{ padding: '1rem 1rem 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f97316' }}>💰 Ventas</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleSyncNow} disabled={syncing} style={{ padding: '0.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-            <RefreshCw size={18} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between flex-shrink-0 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/30 flex items-center justify-center">
+            <TrendingUp size={15} className="text-orange-500" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-slate-100 leading-none">Ventas</h1>
+            <p className="text-[10px] text-slate-500 mt-0.5">{totalUnits} unidades</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleSyncNow}
+            disabled={syncing}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all active:scale-95"
+          >
+            <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
           </button>
-          <button onClick={exportCSV} style={{ padding: '0.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-            <Download size={18} />
+          <button
+            onClick={exportCSV}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all active:scale-95"
+          >
+            <Download size={16} />
           </button>
         </div>
       </div>
 
       {/* Search */}
-      <div style={{ padding: '0.75rem 1rem 0', flexShrink: 0 }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+      <div className="px-4 py-3 flex-shrink-0">
+        <div className="relative">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre o teléfono..."
-            style={{ width: '100%', padding: '0.625rem 0.75rem 0.625rem 2.25rem', background: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem', color: '#f8fafc', fontSize: '0.875rem', outline: 'none' }}
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-sm placeholder:text-slate-600 outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all"
           />
         </div>
       </div>
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', overflowX: 'auto', padding: '0.625rem 1rem', gap: '0.375rem', scrollbarWidth: 'none', flexShrink: 0 }}>
-        {FILTERS.map(f => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            style={{
-              flexShrink: 0, padding: '0.4rem 0.75rem',
-              borderRadius: '0.5rem',
-              border: filter === f.key ? '1px solid #f97316' : '1px solid #334155',
-              background: filter === f.key ? 'rgba(249,115,22,0.15)' : 'transparent',
-              color: filter === f.key ? '#f97316' : '#94a3b8',
-              fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '0.375rem',
-            }}
-          >
-            {f.label}
-            {counts[f.key] > 0 && (
-              <span style={{ background: filter === f.key ? '#f97316' : '#334155', color: filter === f.key ? '#fff' : '#94a3b8', borderRadius: '999px', padding: '0 0.375rem', fontSize: '0.7rem', fontWeight: 700 }}>
-                {counts[f.key]}
-              </span>
-            )}
-          </button>
-        ))}
+      <div
+        className="flex gap-2 px-4 pb-3 overflow-x-auto flex-shrink-0"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {FILTERS.map(f => {
+          const isActive = filter === f.key
+          return (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all duration-150 ${
+                isActive
+                  ? 'bg-orange-500/15 border-orange-500/40 text-orange-400'
+                  : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              }`}
+            >
+              {f.label}
+              {counts[f.key] > 0 && (
+                <span
+                  className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-none ${
+                    isActive ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-500'
+                  }`}
+                >
+                  {counts[f.key]}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {/* Orders list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2.5">
         {filtered.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#64748b', padding: '3rem 0', fontSize: '0.875rem' }}>
-            {search ? 'Sin resultados' : 'No hay órdenes en esta categoría'}
-          </p>
-        ) : filtered.map(order => (
-          <div key={order.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', padding: '0.875rem' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f8fafc', marginBottom: '0.25rem' }}>{order.name}</p>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>📞 {order.phone}</p>
-                <p style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {order.address}</p>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.375rem', flexShrink: 0 }}>
-                <span style={{ fontWeight: 700, color: '#f97316', fontSize: '0.9rem' }}>{order.quantity} uds</span>
-                <p style={{ color: '#475569', fontSize: '0.72rem' }}>{new Date(order.created_at).toLocaleDateString('es-AR')}</p>
-              </div>
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
+              <Package size={22} className="text-slate-600" />
             </div>
-            <button
-              onClick={() => handleStatusToggle(order)}
-              disabled={isPending}
-              style={{
-                marginTop: '0.625rem', padding: '0.4rem 0.875rem',
-                background: `${ORDER_STATUS_COLOR[order.status]}20`,
-                border: `1px solid ${ORDER_STATUS_COLOR[order.status]}50`,
-                borderRadius: '0.5rem',
-                color: ORDER_STATUS_COLOR[order.status],
-                fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
-              }}
-            >
-              {ORDER_STATUS_LABEL[order.status]} →
-            </button>
+            <p className="text-slate-500 text-sm font-medium">
+              {search ? 'Sin resultados' : 'No hay órdenes aquí'}
+            </p>
           </div>
-        ))}
+        ) : (
+          filtered.map(order => {
+            const cfg = ORDER_STATUS_CONFIG[order.status]
+            return (
+              <div
+                key={order.id}
+                className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 transition-all hover:border-slate-700"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-slate-100 mb-1.5">{order.name}</p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Phone size={10} className="text-slate-600 flex-shrink-0" />
+                      <span className="text-xs text-slate-500">{order.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin size={10} className="text-slate-600 flex-shrink-0" />
+                      <span className="text-xs text-slate-600 truncate">{order.address}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="font-bold text-orange-400 text-sm">{order.quantity} uds</span>
+                    <span className="text-[10px] text-slate-600">
+                      {new Date(order.created_at).toLocaleDateString('es-AR')}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <button
+                    onClick={() => handleStatusToggle(order)}
+                    disabled={isPending}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all active:scale-95 hover:opacity-80 ${cfg.bg} ${cfg.border} ${cfg.color}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                    {cfg.label}
+                    <span className="text-slate-600 text-[10px]">→ siguiente</span>
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
-      {/* Bottom nav */}
       <BottomNav active="ventas" />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
 
 function BottomNav({ active }: { active: 'clientes' | 'ventas' }) {
   const router = useRouter()
+  const items = [
+    { key: 'clientes' as const, label: 'Clientes', icon: Users, path: '/' },
+    { key: 'ventas' as const, label: 'Ventas', icon: TrendingUp, path: '/ventas' },
+  ]
   return (
-    <div style={{ background: '#1e293b', borderTop: '1px solid #334155', display: 'flex', flexShrink: 0 }}>
-      {[
-        { key: 'clientes', label: '📋 Clientes', path: '/' },
-        { key: 'ventas', label: '💰 Ventas', path: '/ventas' },
-      ].map(item => (
-        <button
-          key={item.key}
-          onClick={() => router.push(item.path)}
-          style={{
-            flex: 1, padding: '0.75rem',
-            background: 'none', border: 'none',
-            color: active === item.key ? '#f97316' : '#94a3b8',
-            fontSize: '0.8rem', fontWeight: active === item.key ? 700 : 400,
-            cursor: 'pointer', borderTop: active === item.key ? '2px solid #f97316' : '2px solid transparent',
-          }}
-        >
-          {item.label}
-        </button>
-      ))}
+    <div className="flex-shrink-0 bg-slate-900 border-t border-slate-800">
+      <div className="flex">
+        {items.map(item => {
+          const Icon = item.icon
+          const isActive = active === item.key
+          return (
+            <button
+              key={item.key}
+              onClick={() => router.push(item.path)}
+              className={`relative flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
+                isActive ? 'text-orange-500' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {isActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-orange-500 rounded-b-full" />
+              )}
+              <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
+              <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
