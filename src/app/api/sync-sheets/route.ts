@@ -40,7 +40,8 @@ export async function POST() {
     let synced = 0
 
     for (const row of dataRows) {
-      const [timestamp, name, address, quantityRaw, phoneRaw] = row
+      // Columnas: timestamp, email, nombre, telefono, email2, producto, cantidad, direccion, cp, extra
+      const [timestamp, , name, phoneRaw, , , quantityRaw, address] = row
       if (!timestamp || !name || !phoneRaw) continue
 
       const phone = normalizePhone(phoneRaw)
