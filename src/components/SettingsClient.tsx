@@ -1,7 +1,7 @@
 'use client'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Zap, MessageSquare, Database, LogOut, Eye, EyeOff, Users, TrendingUp, Settings, Package } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Zap, MessageSquare, Database, LogOut, Eye, EyeOff, Users, TrendingUp, Settings as SettingsIcon, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveSettings } from '@/app/actions'
 import type { Settings } from '@/lib/types'
@@ -82,7 +82,7 @@ export default function SettingsClient({ settings }: Props) {
         <nav style={{ flex: 1, padding: '12px 10px' }}>
           <NavItem icon={Users} label="Clientes" onClick={() => router.push('/')} />
           <NavItem icon={TrendingUp} label="Ventas" onClick={() => router.push('/ventas')} />
-          <NavItem icon={Settings} label="Configuración" active onClick={() => {}} />
+          <NavItem icon={SettingsIcon} label="Configuración" active onClick={() => {}} />
         </nav>
         <div style={{ padding: '12px 10px', borderTop: '1px solid #1e2d45' }}>
           <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#64748b', fontSize: '13px', cursor: 'pointer' }}>
