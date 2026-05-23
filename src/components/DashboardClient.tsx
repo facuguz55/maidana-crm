@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Search, RefreshCw, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import ContactCard from './ContactCard'
+import ContactRow from './ContactRow'
 import type { Contact, ContactStatus } from '@/lib/types'
 
 const TABS: { key: ContactStatus | 'all'; label: string }[] = [
@@ -43,51 +43,66 @@ export default function DashboardClient({ initialContacts }: Props) {
         } catch {}
       }).subscribe()
     const syncInterval = setInterval(() => { fetch('/api/sync-sheets', { method: 'POST' }).catch(() => {}) }, 5 * 60 * 1000)
-    // Sync inmediato al cargar
     fetch('/api/sync-sheets', { method: 'POST' }).catch(() => {})
     return () => { supabase.removeChannel(channel); clearInterval(syncInterval) }
   }, [refreshContacts])
 
   function handleMarkRead(id: string) {
-    // Actualización instantánea en local state
     setContacts(prev => prev.map(c => c.id === id ? { ...c, unread: false } : c))
-    // API en background
-    fetch('/api/mark-read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contactId: id }),
-    }).catch(() => {})
+    fetch('/api/mark-read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactId: id }) }).catch(() => {})
   }
 
-  const counts: Record<string, number> = {}
-  for (const tab of TABS) {
-    counts[tab.key] = contacts.filter(c => tab.key === 'all' ? true : c.status === tab.key).length
-  }
+  const unreadCount = contacts.filter(c => (c as Contact & { unread?: boolean }).unread).length
 
-  const filtered = contacts
-    .filter(c => activeTab === 'all' ? true : c.status === activeTab)
+  const tabFiltered = contacts.filter(c => activeTab === 'all' ? true : c.status === activeTab)
+
+  const filtered = tabFiltered
     .filter(c => {
       if (!search) return true
       const q = search.toLowerCase()
-      return c.phone.includes(q) || (c.name?.toLowerCase().includes(q) ?? false)
+      return c.phone.includes(q) || (c.name?.toLowerCase().includes(q) ?? false) || (c.last_message_preview?.toLowerCase().includes(q) ?? false)
     })
+    // Unread primero, luego por tiempo
+    .sort((a, b) => {
+      const au = (a as Contact & { unread?: boolean }).unread ? 1 : 0
+      const bu = (b as Contact & { unread?: boolean }).unread ? 1 : 0
+      if (bu !== au) return bu - au
+      return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+    })
+
+  const tabCounts: Record<string, number> = {}
+  for (const tab of TABS) {
+    tabCounts[tab.key] = contacts.filter(c => c.status === tab.key).length
+  }
+  const tabUnread: Record<string, number> = {}
+  for (const tab of TABS) {
+    tabUnread[tab.key] = contacts.filter(c => c.status === tab.key && (c as Contact & { unread?: boolean }).unread).length
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Top bar */}
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div>
-          <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#f8fafc' }}>Contactos</h1>
-          <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{contacts.length} contactos en total</p>
+      <div style={{ padding: '14px 24px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div>
+            <h1 style={{ fontSize: '17px', fontWeight: 700, color: '#f8fafc' }}>Contactos</h1>
+            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '1px' }}>{contacts.length} en total</p>
+          </div>
+          {unreadCount > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '999px' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f97316' }} />
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#f97316' }}>{unreadCount} sin leer</span>
+            </div>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar contacto..."
-              style={{ paddingLeft: '36px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none', width: '260px' }}
+              placeholder="Buscar número o mensaje..."
+              style={{ paddingLeft: '36px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none', width: '280px' }}
             />
           </div>
           <button onClick={refreshContacts} style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}>
@@ -97,33 +112,43 @@ export default function DashboardClient({ initialContacts }: Props) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', padding: '12px 24px', borderBottom: '1px solid #1e2d45', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: '2px', padding: '8px 24px', borderBottom: '1px solid #1e2d45', flexShrink: 0 }}>
         {TABS.map(tab => {
           const isActive = activeTab === tab.key
+          const u = tabUnread[tab.key]
           return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? 'rgba(249,115,22,0.12)' : 'transparent', border: isActive ? '1px solid rgba(249,115,22,0.35)' : '1px solid transparent', color: isActive ? '#f97316' : '#64748b' }}>
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '7px', fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? 'rgba(249,115,22,0.12)' : 'transparent', border: isActive ? '1px solid rgba(249,115,22,0.35)' : '1px solid transparent', color: isActive ? '#f97316' : '#64748b' }}
+            >
               {tab.label}
-              {counts[tab.key] > 0 && (
-                <span style={{ background: isActive ? '#f97316' : '#1e293b', color: isActive ? '#fff' : '#64748b', borderRadius: '999px', padding: '1px 7px', fontSize: '11px', fontWeight: 700 }}>
-                  {counts[tab.key]}
+              {tabCounts[tab.key] > 0 && (
+                <span style={{ background: isActive ? '#f97316' : '#1e293b', color: isActive ? '#fff' : '#64748b', borderRadius: '999px', padding: '1px 6px', fontSize: '11px', fontWeight: 700 }}>
+                  {tabCounts[tab.key]}
                 </span>
+              )}
+              {u > 0 && !isActive && (
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />
               )}
             </button>
           )
         })}
       </div>
 
-      {/* Grid */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+      {/* Lista */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
             <Users size={28} color="#334155" />
-            <p style={{ color: '#64748b', fontSize: '14px' }}>{search ? `Sin resultados para "${search}"` : 'No hay contactos en esta categoría'}</p>
+            <p style={{ color: '#64748b', fontSize: '14px' }}>
+              {search ? `Sin resultados para "${search}"` : 'No hay contactos aquí'}
+            </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
-            {filtered.map(contact => <ContactCard key={contact.id} contact={contact} onMarkRead={handleMarkRead} />)}
-          </div>
+          filtered.map(contact => (
+            <ContactRow key={contact.id} contact={contact} onMarkRead={handleMarkRead} />
+          ))
         )}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
