@@ -48,6 +48,17 @@ export default function DashboardClient({ initialContacts }: Props) {
     return () => { supabase.removeChannel(channel); clearInterval(syncInterval) }
   }, [refreshContacts])
 
+  function handleMarkRead(id: string) {
+    // Actualización instantánea en local state
+    setContacts(prev => prev.map(c => c.id === id ? { ...c, unread: false } : c))
+    // API en background
+    fetch('/api/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactId: id }),
+    }).catch(() => {})
+  }
+
   const counts: Record<string, number> = {}
   for (const tab of TABS) {
     counts[tab.key] = contacts.filter(c => tab.key === 'all' ? true : c.status === tab.key).length
@@ -111,7 +122,7 @@ export default function DashboardClient({ initialContacts }: Props) {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
-            {filtered.map(contact => <ContactCard key={contact.id} contact={contact} />)}
+            {filtered.map(contact => <ContactCard key={contact.id} contact={contact} onMarkRead={handleMarkRead} />)}
           </div>
         )}
       </div>

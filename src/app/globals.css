@@ -72,6 +72,10 @@ html, body {
     background: #0f172a !important;
   }
   .contact-card:hover { background: #1a2539 !important; }
+  /* No leído en mobile: fondo azul vivo */
+  .contact-card[style*="0d1e36"] {
+    background: #0b1a2e !important;
+  }
 
   /* Grid → lista vertical */
   div[style*="grid-template-columns"] {

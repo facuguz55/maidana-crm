@@ -54,15 +54,23 @@ function formatPreview(preview: string | null | undefined): string {
   return preview
 }
 
-interface Props { contact: Contact }
+interface Props {
+  contact: Contact
+  onMarkRead?: (id: string) => void
+}
 
-export default function ContactCard({ contact }: Props) {
+export default function ContactCard({ contact, onMarkRead }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const cfg = STATUS_CONFIG[contact.status]
   const preview = formatPreview(contact.last_message_preview)
   const phone = formatPhone(contact.phone)
   const unread = (contact as Contact & { unread?: boolean }).unread === true
+
+  function handleClick() {
+    if (unread) onMarkRead?.(contact.id)
+    router.push(`/contact/${contact.id}`)
+  }
 
   const actions = STATUS_ACTIONS[contact.status]
 
@@ -81,11 +89,11 @@ export default function ContactCard({ contact }: Props) {
   return (
     <div
       className="contact-card"
-      onClick={() => router.push(`/contact/${contact.id}`)}
+      onClick={handleClick}
       style={{
-        background: unread ? '#0f1f35' : '#1a2539',
-        border: '1px solid #1e2d45',
-        borderLeft: `3px solid ${unread ? '#f97316' : cfg.dot}`,
+        background: unread ? '#0d1e36' : '#1a2539',
+        border: `1px solid ${unread ? '#f97316' : '#1e2d45'}`,
+        borderLeft: `4px solid ${unread ? '#f97316' : cfg.dot}`,
         borderRadius: '10px',
         padding: '14px 16px',
         cursor: 'pointer',
@@ -94,9 +102,10 @@ export default function ContactCard({ contact }: Props) {
         display: 'flex',
         flexDirection: 'column',
         gap: '10px',
+        boxShadow: unread ? '0 0 0 1px rgba(249,115,22,0.15)' : 'none',
       }}
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#1e2d45' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? '#0f1f35' : '#1a2539' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? '#0d1e36' : '#1a2539' }}
     >
       {/* === DESKTOP layout === */}
       <div className="card-desktop">
@@ -118,8 +127,8 @@ export default function ContactCard({ contact }: Props) {
             {timeAgo(contact.last_message_at)}
           </span>
         </div>
-        <div style={{ padding: '8px 10px', background: '#0f172a', borderRadius: '7px', border: '1px solid #1e2d45' }}>
-          <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', margin: 0 }}>
+        <div style={{ padding: '8px 10px', background: unread ? '#0a1628' : '#0f172a', borderRadius: '7px', border: `1px solid ${unread ? '#f9731620' : '#1e2d45'}` }}>
+          <p style={{ fontSize: '13px', color: unread ? '#e2e8f0' : '#94a3b8', fontWeight: unread ? 600 : 400, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', margin: 0 }}>
             {preview}
           </p>
         </div>
@@ -177,10 +186,14 @@ export default function ContactCard({ contact }: Props) {
           </div>
 
           {/* Badge no leído o dot de estado */}
-          {unread
-            ? <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f97316', flexShrink: 0, boxShadow: '0 0 6px #f97316' }} />
-            : <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
-          }
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+            {unread && (
+              <div style={{ minWidth: '20px', height: '20px', borderRadius: '999px', background: '#f97316', color: '#fff', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>
+                1
+              </div>
+            )}
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: cfg.dot }} />
+          </div>
         </div>
       </div>
     </div>
