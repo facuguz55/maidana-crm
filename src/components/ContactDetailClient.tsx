@@ -172,7 +172,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: statusColor, flexShrink: 0, display: 'inline-block' }} />
           <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>{displayName}</h1>
           <span style={{ fontSize: '13px', color: '#64748b' }}>{formatPhone(contact.phone)}</span>
-          <span style={{ fontSize: '12px', color: '#475569' }}>· {timeAgo(contact.last_message_at)}</span>
+          <span suppressHydrationWarning style={{ fontSize: '12px', color: '#475569' }}>· {timeAgo(contact.last_message_at)}</span>
         </div>
       </div>
 

@@ -95,7 +95,7 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
           <span style={{ fontSize: '14px', fontWeight: unread ? 700 : 400, color: unread ? '#fff' : '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.01em', flexShrink: 0 }}>
             {phone}
           </span>
-          <span style={{ fontSize: '12px', color: unread ? '#f97316' : '#475569', fontWeight: unread ? 600 : 400, flexShrink: 0 }}>
+          <span suppressHydrationWarning style={{ fontSize: '12px', color: unread ? '#f97316' : '#475569', fontWeight: unread ? 600 : 400, flexShrink: 0 }}>
             {timeAgo(contact.last_message_at)}
           </span>
         </div>

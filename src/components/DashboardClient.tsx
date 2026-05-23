@@ -44,16 +44,30 @@ export default function DashboardClient({ initialContacts }: Props) {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Set de contactos marcados como leídos localmente — realtime no los deshace
+  // Set de contactos marcados como leídos localmente — persiste en sessionStorage
   const locallyRead = useRef<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Restaurar scroll al volver
+  // Restaurar scroll + locallyRead al montar (solo cliente)
   useEffect(() => {
     const saved = sessionStorage.getItem(SCROLL_KEY)
     if (saved && scrollRef.current) {
       scrollRef.current.scrollTop = parseInt(saved)
     }
+    try {
+      const stored = sessionStorage.getItem('crm_locally_read')
+      if (stored) {
+        const ids: string[] = JSON.parse(stored)
+        ids.forEach(id => locallyRead.current.add(id))
+        setContactMap(prev => {
+          const next = { ...prev }
+          for (const id of ids) {
+            if (next[id]) next[id] = { ...next[id], unread: false }
+          }
+          return next
+        })
+      }
+    } catch {}
   }, [])
 
   const applyLocallyRead = useCallback((list: ExtContact[]): ExtContact[] =>
@@ -79,6 +93,11 @@ export default function DashboardClient({ initialContacts }: Props) {
     }
     if (!silent) setLoading(false)
   }, [applyLocallyRead])
+
+  // Refresh silencioso al montar — garantiza datos frescos al volver de un chat
+  useEffect(() => {
+    refreshContacts(true)
+  }, [refreshContacts])
 
   useEffect(() => {
     const supabase = createClient()
@@ -109,6 +128,9 @@ export default function DashboardClient({ initialContacts }: Props) {
     }
     // Marca localmente — inmediato
     locallyRead.current.add(id)
+    try {
+      sessionStorage.setItem('crm_locally_read', JSON.stringify([...locallyRead.current]))
+    } catch {}
     setContactMap(prev => ({ ...prev, [id]: { ...prev[id], unread: false } }))
     // API en background
     fetch('/api/mark-read', {
