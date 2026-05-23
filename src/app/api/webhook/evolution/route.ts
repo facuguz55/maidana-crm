@@ -6,53 +6,56 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const MEDIA_LABELS: Record<string, string> = {
+  ImageMessage:    '📷 Imagen',
+  VideoMessage:    '🎥 Video',
+  AudioMessage:    '🎵 Audio',
+  DocumentMessage: '📄 Documento',
+  StickerMessage:  '🔖 Sticker',
+  PTTMessage:      '🎵 Audio',
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-
     const event = body.event || body.type || ''
 
-    // ---------- Formato Evolution GO (el que usa este servidor) ----------
-    // event: "Message", data.Info.Chat, data.Info.IsFromMe, data.Text
+    // ── Formato Evolution GO ──────────────────────────────────────────────
     if (event === 'Message' || event === 'message') {
       const info = body.data?.Info
-if (!info) return NextResponse.json({ ok: true, skipped: 'no info' })
-      if (info.IsFromMe === true) return NextResponse.json({ ok: true, skipped: 'own' })
+      if (!info) return NextResponse.json({ ok: true, skipped: 'no info' })
 
       const phone: string = info.Chat || info.Sender || ''
       if (!phone || phone.includes('@g.us') || phone.includes('@lid')) {
         return NextResponse.json({ ok: true, skipped: 'group or lid' })
       }
 
-      // Ignorar eventos sin contenido útil
       const tiposIgnorar = ['ReactionMessage', 'ProtocolMessage']
       if (tiposIgnorar.includes(info.Type)) {
         return NextResponse.json({ ok: true, skipped: 'ignored type' })
       }
 
       const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '')
-
-      // Texto o etiqueta descriptiva del tipo de media
-      const mediaLabels: Record<string, string> = {
-        ImageMessage:    '📷 Imagen',
-        VideoMessage:    '🎥 Video',
-        AudioMessage:    '🎵 Audio',
-        DocumentMessage: '📄 Documento',
-        StickerMessage:  '🔖 Sticker',
-      }
       const messageText: string =
         body.data?.Message?.conversation ||
         body.data?.Message?.extendedTextMessage?.text ||
         body.data?.Message?.imageMessage?.caption ||
         body.data?.Message?.videoMessage?.caption ||
-        mediaLabels[info.Type] ||
+        MEDIA_LABELS[info.Type] ||
         '[media]'
 
-      await upsertContactAndMessage(cleanPhone, messageText)
+      const wamid: string | null = info.ID || null
+      const isFromMe: boolean = info.IsFromMe === true
+
+      if (isFromMe) {
+        await saveOutbound(cleanPhone, messageText, wamid)
+      } else {
+        await upsertContactAndMessage(cleanPhone, messageText, wamid)
+      }
       return NextResponse.json({ ok: true })
     }
 
-    // ---------- Formato Evolution Node.js (messages.upsert) ----------
+    // ── Formato Evolution Node.js (messages.upsert) ───────────────────────
     const validEvents = ['messages.upsert', 'MESSAGES_UPSERT']
     if (!validEvents.includes(event)) {
       return NextResponse.json({ ok: true, skipped: `event: ${event}` })
@@ -60,8 +63,7 @@ if (!info) return NextResponse.json({ ok: true, skipped: 'no info' })
 
     const data = body.data || body
     const message = data.messages?.[0] || data.message || data
-    const fromMe = message?.key?.fromMe ?? data?.key?.fromMe ?? false
-    if (fromMe) return NextResponse.json({ ok: true, skipped: 'own' })
+    const fromMe: boolean = message?.key?.fromMe ?? data?.key?.fromMe ?? false
 
     const phone: string = message?.key?.remoteJid || data?.key?.remoteJid || ''
     if (!phone || phone.includes('@g.us')) {
@@ -72,9 +74,18 @@ if (!info) return NextResponse.json({ ok: true, skipped: 'no info' })
     const messageText: string =
       message?.message?.conversation ||
       message?.message?.extendedTextMessage?.text ||
+      message?.message?.audioMessage ? '🎵 Audio' :
+      message?.message?.imageMessage ? '📷 Imagen' :
+      message?.message?.videoMessage ? '🎥 Video' :
+      message?.message?.documentMessage ? '📄 Documento' :
       '[media]'
+    const wamid: string | null = message?.key?.id || null
 
-    await upsertContactAndMessage(cleanPhone, messageText)
+    if (fromMe) {
+      await saveOutbound(cleanPhone, messageText, wamid)
+    } else {
+      await upsertContactAndMessage(cleanPhone, messageText, wamid)
+    }
     return NextResponse.json({ ok: true })
 
   } catch (err) {
@@ -83,7 +94,8 @@ if (!info) return NextResponse.json({ ok: true, skipped: 'no info' })
   }
 }
 
-async function upsertContactAndMessage(phone: string, messageText: string) {
+// Guarda mensaje inbound + crea/actualiza contacto
+async function upsertContactAndMessage(phone: string, messageText: string, wamid: string | null) {
   const now = new Date().toISOString()
 
   const { data: existing } = await supabase
@@ -109,12 +121,44 @@ async function upsertContactAndMessage(phone: string, messageText: string) {
     contactId = inserted?.id
   }
 
-  if (contactId && messageText !== '[media]') {
-    await supabase.from('messages').insert({
-      contact_id: contactId,
-      body: messageText,
-      direction: 'inbound',
-      timestamp: now,
-    })
+  if (contactId) {
+    await insertMessage(contactId, messageText, 'inbound', now, wamid)
+  }
+}
+
+// Guarda mensaje outbound (enviado por nosotros desde el teléfono, bot, etc.)
+async function saveOutbound(phone: string, messageText: string, wamid: string | null) {
+  if (!phone) return
+
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('id')
+    .eq('phone', phone)
+    .single()
+
+  if (!contact) return // ignorar outbound a números que no son clientes
+
+  const now = new Date().toISOString()
+  await insertMessage(contact.id, messageText, 'outbound', now, wamid)
+}
+
+// Inserta mensaje evitando duplicados por wamid
+async function insertMessage(
+  contactId: string,
+  body: string,
+  direction: 'inbound' | 'outbound',
+  timestamp: string,
+  wamid: string | null,
+) {
+  const { error } = await supabase.from('messages').insert({
+    contact_id: contactId,
+    body,
+    direction,
+    timestamp,
+    wamid,
+  })
+  // 23505 = unique_violation — el mensaje ya fue guardado (duplicado por wamid)
+  if (error && error.code !== '23505') {
+    console.error('[insertMessage]', error)
   }
 }

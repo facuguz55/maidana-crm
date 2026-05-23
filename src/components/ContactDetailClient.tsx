@@ -38,6 +38,8 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   const [messageText, setMessageText] = useState('')
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Cuerpos de mensajes outbound enviados desde el CRM — para no duplicar con el webhook
+  const pendingOutbound = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -59,10 +61,20 @@ export default function ContactDetailClient({ contact: initialContact, order, in
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `contact_id=eq.${contact.id}` },
         (payload) => {
           const msg = payload.new as Message
-          // Los mensajes outbound ya se agregan optimisticamente al enviar
-          if (msg.direction === 'outbound') return
+
+          if (msg.direction === 'outbound') {
+            // Si es un mensaje que enviamos desde el CRM, ya está en pantalla (optimistic).
+            // Si es un mensaje automático/bot/teléfono, lo mostramos.
+            if (pendingOutbound.current.has(msg.body)) {
+              pendingOutbound.current.delete(msg.body)
+              return // ya está como optimistic
+            }
+            setMessages(prev => [...prev, msg])
+            return
+          }
+
+          // Inbound: agregar + sonido + marcar leído
           setMessages(prev => [...prev, msg])
-          // Marcar como leído y reproducir sonido al recibir mensaje
           fetch('/api/mark-read', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -94,6 +106,8 @@ export default function ContactDetailClient({ contact: initialContact, order, in
         body: JSON.stringify({ contactId: contact.id, phone: contact.phone, text }),
       })
       if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Error al enviar'); return }
+      // Registro en pending para que el webhook outbound no duplique
+      pendingOutbound.current.add(text)
       setMessages(prev => [...prev, { id: crypto.randomUUID(), contact_id: contact.id, body: text, direction: 'outbound', timestamp: new Date().toISOString() }])
       setMessageText('')
     } catch { toast.error('Error de red al enviar') }

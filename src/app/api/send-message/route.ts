@@ -40,13 +40,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Evolution API error: ${errText}` }, { status: 502 })
     }
 
-    // Guardar en messages
-    await supabase.from('messages').insert({
+    // Extraer wamid de la respuesta para deduplicar con el webhook outbound
+    let wamid: string | null = null
+    try {
+      const evoData = await evoRes.json()
+      wamid = evoData?.key?.id || evoData?.wuid || evoData?.message?.key?.id || null
+    } catch {}
+
+    // Guardar en messages (el webhook outbound también lo intentará — el wamid evita duplicado)
+    const { error } = await supabase.from('messages').insert({
       contact_id: contactId,
       body: text,
       direction: 'outbound',
       timestamp: new Date().toISOString(),
+      wamid,
     })
+    if (error && error.code !== '23505') {
+      console.error('[send-message insert]', error)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

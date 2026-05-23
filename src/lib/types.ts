@@ -31,6 +31,7 @@ export interface Message {
   body: string
   direction: 'inbound' | 'outbound'
   timestamp: string
+  wamid?: string | null
 }
 
 export interface Settings {
