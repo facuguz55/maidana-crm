@@ -65,10 +65,17 @@ export default function ContactDetailClient({ contact: initialContact, order, in
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contactId: contact.id, phone: contact.phone }),
         })
-        if (!res.ok || cancelled) return
         const data = await res.json()
-        if (data.saved > 0 && !cancelled) {
-          // Recargar mensajes frescos desde Supabase
+        if (cancelled) return
+        if (!res.ok) {
+          toast.error(`Historial: ${data.error || 'Error al sincronizar'}`)
+          return
+        }
+        if (data.debug) {
+          console.log('[fetch-history debug]', data.debug)
+        }
+        if (data.saved > 0) {
+          toast.success(`${data.saved} mensajes sincronizados`)
           const { createClient } = await import('@/lib/supabase/client')
           const supabase = createClient()
           const { data: fresh } = await supabase
@@ -77,9 +84,15 @@ export default function ContactDetailClient({ contact: initialContact, order, in
             .eq('contact_id', contact.id)
             .order('timestamp', { ascending: true })
           if (fresh && !cancelled) setMessages(fresh as Message[])
+        } else if (data.tried) {
+          console.log('[fetch-history] Sin mensajes nuevos. Endpoints probados:', data.tried)
         }
-      } catch {}
-      finally { if (!cancelled) setSyncing(false) }
+      } catch (err) {
+        if (!cancelled) toast.error('Historial: error de red')
+        console.error('[fetch-history]', err)
+      } finally {
+        if (!cancelled) setSyncing(false)
+      }
     }
     syncHistory()
     return () => { cancelled = true }
