@@ -84,14 +84,18 @@ export default function DashboardClient({ initialContacts }: Props) {
     const supabase = createClient()
     const channel = supabase
       .channel('contacts-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, (payload) => {
         refreshContacts(true) // silencioso: no mueve la lista
-        try {
-          const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain()
-          osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 520
-          gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
-          osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3)
-        } catch {}
+        // Solo suena cuando llega un mensaje nuevo (unread pasa a true)
+        const isNewMessage = (payload.new as { unread?: boolean })?.unread === true
+        if (isNewMessage) {
+          try {
+            const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain()
+            osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 520
+            gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+            osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3)
+          } catch {}
+        }
       }).subscribe()
     const syncInterval = setInterval(() => { fetch('/api/sync-sheets', { method: 'POST' }).catch(() => {}) }, 5 * 60 * 1000)
     fetch('/api/sync-sheets', { method: 'POST' }).catch(() => {})

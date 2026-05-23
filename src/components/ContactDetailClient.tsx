@@ -43,6 +43,14 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Marcar como leído al abrir el chat
+  useEffect(() => {
+    fetch('/api/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactId: contact.id }),
+    }).catch(() => {})
+  }, [contact.id])
 
   useEffect(() => {
     const supabase = createClient()
@@ -54,6 +62,24 @@ export default function ContactDetailClient({ contact: initialContact, order, in
           // Los mensajes outbound ya se agregan optimisticamente al enviar
           if (msg.direction === 'outbound') return
           setMessages(prev => [...prev, msg])
+          // Marcar como leído y reproducir sonido al recibir mensaje
+          fetch('/api/mark-read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contactId: contact.id }),
+          }).catch(() => {})
+          try {
+            const ctx = new AudioContext()
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.connect(gain)
+            gain.connect(ctx.destination)
+            osc.frequency.value = 880
+            gain.gain.setValueAtTime(0.08, ctx.currentTime)
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
+            osc.start(ctx.currentTime)
+            osc.stop(ctx.currentTime + 0.25)
+          } catch {}
         })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
