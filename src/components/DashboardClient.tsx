@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Search, RefreshCw, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import ContactRow from './ContactRow'
@@ -13,28 +13,79 @@ const TABS: { key: ContactStatus | 'all'; label: string }[] = [
   { key: 'frio', label: 'Fríos' },
 ]
 
+const SCROLL_KEY = 'crm_scroll_pos'
+
+type ExtContact = Contact & { unread?: boolean }
+
+function sortOnce(list: ExtContact[]): ExtContact[] {
+  return [...list].sort((a, b) => {
+    const au = a.unread ? 1 : 0
+    const bu = b.unread ? 1 : 0
+    if (bu !== au) return bu - au
+    return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+  })
+}
+
 interface Props { initialContacts: Contact[] }
 
 export default function DashboardClient({ initialContacts }: Props) {
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts)
+  // Orden inicial fijado al montar — no cambia con realtime
+  const [orderedIds, setOrderedIds] = useState<string[]>(() =>
+    sortOnce(initialContacts as ExtContact[]).map(c => c.id)
+  )
+  // Mapa id → datos actualizados
+  const [contactMap, setContactMap] = useState<Record<string, ExtContact>>(() => {
+    const m: Record<string, ExtContact> = {}
+    for (const c of initialContacts) m[c.id] = c as ExtContact
+    return m
+  })
+
   const [activeTab, setActiveTab] = useState<ContactStatus | 'all'>('nuevo')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const refreshContacts = useCallback(async () => {
-    setLoading(true)
+  // Set de contactos marcados como leídos localmente — realtime no los deshace
+  const locallyRead = useRef<Set<string>>(new Set())
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Restaurar scroll al volver
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SCROLL_KEY)
+    if (saved && scrollRef.current) {
+      scrollRef.current.scrollTop = parseInt(saved)
+    }
+  }, [])
+
+  const applyLocallyRead = useCallback((list: ExtContact[]): ExtContact[] =>
+    list.map(c => locallyRead.current.has(c.id) ? { ...c, unread: false } : c)
+  , [])
+
+  const refreshContacts = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     const supabase = createClient()
     const { data } = await supabase.from('contacts').select('*').order('last_message_at', { ascending: false })
-    if (data) setContacts(data)
-    setLoading(false)
-  }, [])
+    if (data) {
+      const withRead = applyLocallyRead(data as ExtContact[])
+      setContactMap(prev => {
+        const next = { ...prev }
+        for (const c of withRead) next[c.id] = c
+        return next
+      })
+      // Solo agrega IDs nuevos al principio — no re-ordena los existentes
+      setOrderedIds(prev => {
+        const newIds = withRead.filter(c => !prev.includes(c.id)).map(c => c.id)
+        return newIds.length > 0 ? [...newIds, ...prev] : prev
+      })
+    }
+    if (!silent) setLoading(false)
+  }, [applyLocallyRead])
 
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
       .channel('contacts-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => {
-        refreshContacts()
+        refreshContacts(true) // silencioso: no mueve la lista
         try {
           const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain()
           osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 520
@@ -48,40 +99,55 @@ export default function DashboardClient({ initialContacts }: Props) {
   }, [refreshContacts])
 
   function handleMarkRead(id: string) {
-    setContacts(prev => prev.map(c => c.id === id ? { ...c, unread: false } : c))
-    fetch('/api/mark-read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactId: id }) }).catch(() => {})
+    // Guarda scroll antes de navegar
+    if (scrollRef.current) {
+      sessionStorage.setItem(SCROLL_KEY, String(scrollRef.current.scrollTop))
+    }
+    // Marca localmente — inmediato
+    locallyRead.current.add(id)
+    setContactMap(prev => ({ ...prev, [id]: { ...prev[id], unread: false } }))
+    // API en background
+    fetch('/api/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactId: id }),
+    }).catch(() => {})
   }
 
-  const unreadCount = contacts.filter(c => (c as Contact & { unread?: boolean }).unread).length
+  const contacts = useMemo(() =>
+    orderedIds.map(id => contactMap[id]).filter(Boolean)
+  , [orderedIds, contactMap])
 
-  const tabFiltered = contacts.filter(c => activeTab === 'all' ? true : c.status === activeTab)
+  const unreadCount = useMemo(() =>
+    contacts.filter(c => c.unread).length
+  , [contacts])
 
-  const filtered = tabFiltered
-    .filter(c => {
-      if (!search) return true
+  const filtered = useMemo(() => {
+    let list = contacts.filter(c => activeTab === 'all' ? true : c.status === activeTab)
+    if (search) {
       const q = search.toLowerCase()
-      return c.phone.includes(q) || (c.name?.toLowerCase().includes(q) ?? false) || (c.last_message_preview?.toLowerCase().includes(q) ?? false)
-    })
-    // Unread primero, luego por tiempo
-    .sort((a, b) => {
-      const au = (a as Contact & { unread?: boolean }).unread ? 1 : 0
-      const bu = (b as Contact & { unread?: boolean }).unread ? 1 : 0
-      if (bu !== au) return bu - au
-      return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-    })
+      list = list.filter(c =>
+        c.phone.includes(q) ||
+        (c.name?.toLowerCase().includes(q) ?? false) ||
+        (c.last_message_preview?.toLowerCase().includes(q) ?? false)
+      )
+    }
+    return list
+  }, [contacts, activeTab, search])
 
-  const tabCounts: Record<string, number> = {}
-  for (const tab of TABS) {
-    tabCounts[tab.key] = contacts.filter(c => c.status === tab.key).length
-  }
-  const tabUnread: Record<string, number> = {}
-  for (const tab of TABS) {
-    tabUnread[tab.key] = contacts.filter(c => c.status === tab.key && (c as Contact & { unread?: boolean }).unread).length
-  }
+  const tabCounts = useMemo(() => {
+    const m: Record<string, number> = {}
+    const u: Record<string, number> = {}
+    for (const tab of TABS) {
+      m[tab.key] = contacts.filter(c => c.status === tab.key).length
+      u[tab.key] = contacts.filter(c => c.status === tab.key && c.unread).length
+    }
+    return { counts: m, unread: u }
+  }, [contacts])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Top bar */}
+      {/* Header */}
       <div style={{ padding: '14px 24px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div>
@@ -105,7 +171,10 @@ export default function DashboardClient({ initialContacts }: Props) {
               style={{ paddingLeft: '36px', paddingRight: '16px', paddingTop: '8px', paddingBottom: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none', width: '280px' }}
             />
           </div>
-          <button onClick={refreshContacts} style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}>
+          <button
+            onClick={() => refreshContacts(false)}
+            style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}
+          >
             <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         </div>
@@ -115,7 +184,8 @@ export default function DashboardClient({ initialContacts }: Props) {
       <div style={{ display: 'flex', gap: '2px', padding: '8px 24px', borderBottom: '1px solid #1e2d45', flexShrink: 0 }}>
         {TABS.map(tab => {
           const isActive = activeTab === tab.key
-          const u = tabUnread[tab.key]
+          const count = tabCounts.counts[tab.key]
+          const u = tabCounts.unread[tab.key]
           return (
             <button
               key={tab.key}
@@ -123,21 +193,21 @@ export default function DashboardClient({ initialContacts }: Props) {
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '7px', fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? 'rgba(249,115,22,0.12)' : 'transparent', border: isActive ? '1px solid rgba(249,115,22,0.35)' : '1px solid transparent', color: isActive ? '#f97316' : '#64748b' }}
             >
               {tab.label}
-              {tabCounts[tab.key] > 0 && (
+              {count > 0 && (
                 <span style={{ background: isActive ? '#f97316' : '#1e293b', color: isActive ? '#fff' : '#64748b', borderRadius: '999px', padding: '1px 6px', fontSize: '11px', fontWeight: 700 }}>
-                  {tabCounts[tab.key]}
+                  {count}
                 </span>
               )}
               {u > 0 && !isActive && (
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />
               )}
             </button>
           )
         })}
       </div>
 
-      {/* Lista */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      {/* Lista — posición guardada */}
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
             <Users size={28} color="#334155" />
