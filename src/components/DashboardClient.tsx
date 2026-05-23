@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react'
 import { Search, RefreshCw, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import ContactRow from './ContactRow'
@@ -17,7 +17,7 @@ const SCROLL_KEY = 'crm_scroll_pos'
 
 type ExtContact = Contact & { unread?: boolean }
 
-function sortOnce(list: ExtContact[]): ExtContact[] {
+function sorted(list: ExtContact[]): ExtContact[] {
   return [...list].sort((a, b) => {
     const au = a.unread ? 1 : 0
     const bu = b.unread ? 1 : 0
@@ -29,11 +29,7 @@ function sortOnce(list: ExtContact[]): ExtContact[] {
 interface Props { initialContacts: Contact[] }
 
 export default function DashboardClient({ initialContacts }: Props) {
-  // Orden inicial fijado al montar — no cambia con realtime
-  const [orderedIds, setOrderedIds] = useState<string[]>(() =>
-    sortOnce(initialContacts as ExtContact[]).map(c => c.id)
-  )
-  // Mapa id → datos actualizados
+  // Único source of truth — el orden se deriva siempre desde acá
   const [contactMap, setContactMap] = useState<Record<string, ExtContact>>(() => {
     const m: Record<string, ExtContact> = {}
     for (const c of initialContacts) m[c.id] = c as ExtContact
@@ -44,12 +40,11 @@ export default function DashboardClient({ initialContacts }: Props) {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Set de contactos marcados como leídos localmente — persiste en sessionStorage
   const locallyRead = useRef<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Restaurar scroll + locallyRead al montar (solo cliente)
-  useEffect(() => {
+  // Restaurar scroll + locallyRead antes del primer paint — sin flash visible
+  useLayoutEffect(() => {
     const saved = sessionStorage.getItem(SCROLL_KEY)
     if (saved && scrollRef.current) {
       scrollRef.current.scrollTop = parseInt(saved)
@@ -58,14 +53,16 @@ export default function DashboardClient({ initialContacts }: Props) {
       const stored = sessionStorage.getItem('crm_locally_read')
       if (stored) {
         const ids: string[] = JSON.parse(stored)
-        ids.forEach(id => locallyRead.current.add(id))
-        setContactMap(prev => {
-          const next = { ...prev }
-          for (const id of ids) {
-            if (next[id]) next[id] = { ...next[id], unread: false }
-          }
-          return next
-        })
+        if (ids.length > 0) {
+          ids.forEach(id => locallyRead.current.add(id))
+          setContactMap(prev => {
+            const next = { ...prev }
+            for (const id of ids) {
+              if (next[id]) next[id] = { ...next[id], unread: false }
+            }
+            return next
+          })
+        }
       }
     } catch {}
   }, [])
@@ -80,15 +77,10 @@ export default function DashboardClient({ initialContacts }: Props) {
     const { data } = await supabase.from('contacts').select('*').order('last_message_at', { ascending: false })
     if (data) {
       const withRead = applyLocallyRead(data as ExtContact[])
-      setContactMap(prev => {
-        const next = { ...prev }
-        for (const c of withRead) next[c.id] = c
-        return next
-      })
-      // Solo agrega IDs nuevos al principio — no re-ordena los existentes
-      setOrderedIds(prev => {
-        const newIds = withRead.filter(c => !prev.includes(c.id)).map(c => c.id)
-        return newIds.length > 0 ? [...newIds, ...prev] : prev
+      setContactMap(() => {
+        const m: Record<string, ExtContact> = {}
+        for (const c of withRead) m[c.id] = c
+        return m
       })
     }
     if (!silent) setLoading(false)
@@ -104,8 +96,7 @@ export default function DashboardClient({ initialContacts }: Props) {
     const channel = supabase
       .channel('contacts-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, (payload) => {
-        refreshContacts(true) // silencioso: no mueve la lista
-        // Solo suena cuando llega un mensaje nuevo (unread pasa a true)
+        refreshContacts(true)
         const isNewMessage = (payload.new as { unread?: boolean })?.unread === true
         if (isNewMessage) {
           try {
@@ -122,17 +113,15 @@ export default function DashboardClient({ initialContacts }: Props) {
   }, [refreshContacts])
 
   function handleMarkRead(id: string) {
-    // Guarda scroll antes de navegar
     if (scrollRef.current) {
       sessionStorage.setItem(SCROLL_KEY, String(scrollRef.current.scrollTop))
     }
-    // Marca localmente — inmediato
     locallyRead.current.add(id)
     try {
       sessionStorage.setItem('crm_locally_read', JSON.stringify([...locallyRead.current]))
     } catch {}
+    // Marca como leído — el useMemo re-ordena automáticamente
     setContactMap(prev => ({ ...prev, [id]: { ...prev[id], unread: false } }))
-    // API en background
     fetch('/api/mark-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -140,13 +129,10 @@ export default function DashboardClient({ initialContacts }: Props) {
     }).catch(() => {})
   }
 
-  const contacts = useMemo(() =>
-    orderedIds.map(id => contactMap[id]).filter(Boolean)
-  , [orderedIds, contactMap])
+  // Orden siempre derivado del mapa: no leídos primero, luego por fecha
+  const contacts = useMemo(() => sorted(Object.values(contactMap)), [contactMap])
 
-  const unreadCount = useMemo(() =>
-    contacts.filter(c => c.unread).length
-  , [contacts])
+  const unreadCount = useMemo(() => contacts.filter(c => c.unread).length, [contacts])
 
   const filtered = useMemo(() => {
     let list = contacts.filter(c => activeTab === 'all' ? true : c.status === activeTab)
@@ -232,7 +218,7 @@ export default function DashboardClient({ initialContacts }: Props) {
         })}
       </div>
 
-      {/* Lista — posición guardada */}
+      {/* Lista */}
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
