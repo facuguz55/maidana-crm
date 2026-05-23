@@ -37,8 +37,8 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [messageText, setMessageText] = useState('')
   const [sending, setSending] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  // Cuerpos de mensajes outbound enviados desde el CRM — para no duplicar con el webhook
   const pendingOutbound = useRef<Set<string>>(new Set())
 
   useEffect(() => {
@@ -53,6 +53,37 @@ export default function ContactDetailClient({ contact: initialContact, order, in
       body: JSON.stringify({ contactId: contact.id }),
     }).catch(() => {})
   }, [contact.id])
+
+  // Sincronizar historial de mensajes desde Evolution API
+  useEffect(() => {
+    let cancelled = false
+    async function syncHistory() {
+      setSyncing(true)
+      try {
+        const res = await fetch('/api/fetch-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactId: contact.id, phone: contact.phone }),
+        })
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (data.saved > 0 && !cancelled) {
+          // Recargar mensajes frescos desde Supabase
+          const { createClient } = await import('@/lib/supabase/client')
+          const supabase = createClient()
+          const { data: fresh } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('contact_id', contact.id)
+            .order('timestamp', { ascending: true })
+          if (fresh && !cancelled) setMessages(fresh as Message[])
+        }
+      } catch {}
+      finally { if (!cancelled) setSyncing(false) }
+    }
+    syncHistory()
+    return () => { cancelled = true }
+  }, [contact.id, contact.phone])
 
   useEffect(() => {
     const supabase = createClient()
@@ -298,8 +329,9 @@ export default function ContactDetailClient({ contact: initialContact, order, in
 
         {/* Right panel — chat */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e2d45', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e2d45', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
             Conversación
+            {syncing && <span style={{ fontSize: '10px', color: '#475569', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>sincronizando...</span>}
           </div>
 
           {/* Messages */}
