@@ -1,10 +1,34 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
+import { Flame, Snowflake, DollarSign, CheckCircle, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateContactStatus } from '@/app/actions'
 import { formatPhone, timeAgo } from '@/lib/utils'
 import type { Contact, ContactStatus } from '@/lib/types'
+
+type Action = { label: string; icon: LucideIcon; target: ContactStatus; color: string; bg: string; border: string }
+
+const STATUS_ACTIONS: Record<ContactStatus, Action[]> = {
+  nuevo: [
+    { label: 'Caliente',      icon: Flame,       target: 'caliente',      color: '#f97316', bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)'  },
+    { label: 'Verificar pago',icon: DollarSign,  target: 'verificar_pago',color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)'  },
+    { label: 'Frío',          icon: Snowflake,   target: 'frio',          color: '#64748b', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.25)' },
+  ],
+  caliente: [
+    { label: 'Verificar pago',icon: DollarSign,  target: 'verificar_pago',color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)'  },
+    { label: 'Frío',          icon: Snowflake,   target: 'frio',          color: '#64748b', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.25)' },
+  ],
+  frio: [
+    { label: 'Caliente',      icon: Flame,       target: 'caliente',      color: '#f97316', bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)'  },
+    { label: 'Verificar pago',icon: DollarSign,  target: 'verificar_pago',color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.3)'  },
+  ],
+  verificar_pago: [
+    { label: 'Pagado',        icon: CheckCircle, target: 'pagado',        color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   border: 'rgba(34,197,94,0.3)'   },
+    { label: 'Frío',          icon: Snowflake,   target: 'frio',          color: '#64748b', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.25)' },
+  ],
+  pagado: [],
+}
 
 const STATUS_CONFIG: Record<ContactStatus, { color: string; bg: string; dot: string; label: string }> = {
   nuevo:          { color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  dot: '#3b82f6', label: 'Nuevo' },
@@ -40,12 +64,14 @@ export default function ContactCard({ contact }: Props) {
   const phone = formatPhone(contact.phone)
   const unread = (contact as Contact & { unread?: boolean }).unread === true
 
-  function quickAction(e: React.MouseEvent, status: ContactStatus) {
+  const actions = STATUS_ACTIONS[contact.status]
+
+  function quickAction(e: React.MouseEvent, action: Action) {
     e.stopPropagation()
     startTransition(async () => {
       try {
-        await updateContactStatus(contact.id, status)
-        toast.success(status === 'verificar_pago' ? '💰 Movido a Verificar Pago' : '🥶 Marcado como Frío')
+        await updateContactStatus(contact.id, action.target)
+        toast.success(`Movido a ${action.label}`)
       } catch {
         toast.error('Error al actualizar')
       }
@@ -97,23 +123,28 @@ export default function ContactCard({ contact }: Props) {
             {preview}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {contact.status !== 'verificar_pago' && contact.status !== 'pagado' && (
-            <button onClick={(e) => quickAction(e, 'verificar_pago')} style={{ flex: 1, padding: '6px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '7px', color: '#f59e0b', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-              💰 Quiere pagar
-            </button>
-          )}
-          {contact.status !== 'frio' && contact.status !== 'pagado' && (
-            <button onClick={(e) => quickAction(e, 'frio')} style={{ flex: 1, padding: '6px', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', borderRadius: '7px', color: '#64748b', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-              🥶 Frío
-            </button>
-          )}
-          {contact.status === 'pagado' && (
-            <div style={{ flex: 1, padding: '6px', textAlign: 'center', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '7px', color: '#22c55e', fontSize: '12px', fontWeight: 600 }}>
-              ✅ Pagado
-            </div>
-          )}
-        </div>
+        {actions.length > 0 && (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {actions.map(action => {
+              const Icon = action.icon
+              return (
+                <button
+                  key={action.target}
+                  onClick={(e) => quickAction(e, action)}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '6px 8px', background: action.bg, border: `1px solid ${action.border}`, borderRadius: '7px', color: action.color, fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.15s' }}
+                >
+                  <Icon size={12} />
+                  {action.label}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {contact.status === 'pagado' && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '6px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: '7px', color: '#22c55e', fontSize: '12px', fontWeight: 600 }}>
+            <CheckCircle size={12} /> Pagado
+          </div>
+        )}
       </div>
 
       {/* === MOBILE layout (estilo WhatsApp) === */}
