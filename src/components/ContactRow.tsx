@@ -51,6 +51,7 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
   const actions = STATUS_ACTIONS[contact.status]
   const preview = formatPreview(contact.last_message_preview)
   const phone = formatPhone(contact.phone)
+  const displayName = contact.name || phone
 
   function handleClick() {
     if (unread) onMarkRead?.(contact.id)
@@ -93,9 +94,12 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
       {/* Info principal */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '3px' }}>
-          <span style={{ fontSize: '14px', fontWeight: unread ? 700 : 400, color: unread ? '#fff' : '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.01em', flexShrink: 0 }}>
-            {phone}
+          <span style={{ fontSize: '14px', fontWeight: unread ? 700 : 400, color: unread ? '#fff' : '#94a3b8', letterSpacing: '0.01em', flexShrink: 0 }}>
+            {displayName}
           </span>
+          {contact.name && (
+            <span style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace' }}>{phone}</span>
+          )}
           {isScheduled && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#818cf8', fontWeight: 600, fontFamily: 'inherit' }}>
               <Calendar size={10} /> Agendado
