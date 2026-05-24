@@ -1,7 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { Flame, Snowflake, DollarSign, CheckCircle, Calendar, type LucideIcon } from 'lucide-react'
+import { Flame, Snowflake, DollarSign, CheckCircle, Calendar, Trash2, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateContactStatus } from '@/app/actions'
 import { formatPhone, timeAgo } from '@/lib/utils'
@@ -132,6 +132,15 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
         })}
         {contact.status === 'pagado' && (
           <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, padding: '4px 8px' }}>✓ Pagado</span>
+        )}
+        {contact.status !== 'nuevo' && (
+          <button
+            onClick={e => { e.stopPropagation(); startTransition(async () => { try { await updateContactStatus(contact.id, 'nuevo'); toast.success('Devuelto a General') } catch { toast.error('Error') } }) }}
+            title="Quitar de esta sección"
+            style={{ display: 'flex', alignItems: 'center', padding: '4px 6px', background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '6px', color: '#ef4444', cursor: 'pointer' }}
+          >
+            <Trash2 size={13} />
+          </button>
         )}
       </div>
     </div>
