@@ -9,10 +9,9 @@ import { formatPhone, timeAgo } from '@/lib/utils'
 import type { Contact, ContactStatus, Order, Message } from '@/lib/types'
 
 const STATUS_OPTIONS: { value: ContactStatus; label: string; color: string; bg: string }[] = [
-  { value: 'nuevo', label: 'Nuevo', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+  { value: 'nuevo', label: 'General', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
   { value: 'frio', label: 'Frío', color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
   { value: 'caliente', label: 'Caliente', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
-  { value: 'verificar_pago', label: 'Verificar Pago', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
   { value: 'pagado', label: 'Pagado', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
 ]
 
@@ -306,20 +305,6 @@ export default function ContactDetailClient({ contact: initialContact, order, in
               ))}
             </div>
           </Section>
-
-          {contact.status === 'verificar_pago' && !showPlanilla && (
-            <button
-              onClick={handleConfirmPago}
-              disabled={isPending}
-              style={{
-                width: '100%', padding: '12px', marginBottom: '16px',
-                background: '#22c55e', border: 'none', borderRadius: '9px',
-                color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-              }}
-            >
-              ✅ Confirmar Pago
-            </button>
-          )}
 
           {(showPlanilla || contact.status === 'pagado') && !order && (
             <Section title="Planilla para enviar">

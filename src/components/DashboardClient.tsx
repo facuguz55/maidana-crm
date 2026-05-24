@@ -10,7 +10,6 @@ type TabKey = ContactStatus | 'all' | 'agendado'
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'nuevo', label: 'General' },
   { key: 'caliente', label: 'Calientes' },
-  { key: 'verificar_pago', label: 'Verificar pago' },
   { key: 'pagado', label: 'Pagados' },
   { key: 'frio', label: 'Fríos' },
   { key: 'agendado', label: 'Agendados' },

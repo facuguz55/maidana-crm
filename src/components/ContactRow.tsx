@@ -11,21 +11,20 @@ type Action = { label: string; icon: LucideIcon; target: ContactStatus; color: s
 
 const STATUS_ACTIONS: Record<ContactStatus, Action[]> = {
   nuevo:          [
-    { label: 'Caliente',       icon: Flame,       target: 'caliente',       color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
-    { label: 'Verificar pago', icon: DollarSign,  target: 'verificar_pago', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    { label: 'Frío',           icon: Snowflake,   target: 'frio',           color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
+    { label: 'Caliente', icon: Flame,       target: 'caliente', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+    { label: 'Frío',     icon: Snowflake,   target: 'frio',     color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
   ],
   caliente:       [
-    { label: 'Verificar pago', icon: DollarSign,  target: 'verificar_pago', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    { label: 'Frío',           icon: Snowflake,   target: 'frio',           color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
+    { label: 'Pagado', icon: CheckCircle, target: 'pagado', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
+    { label: 'Frío',   icon: Snowflake,   target: 'frio',   color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
   ],
   frio:           [
-    { label: 'Caliente',       icon: Flame,       target: 'caliente',       color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
-    { label: 'Verificar pago', icon: DollarSign,  target: 'verificar_pago', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    { label: 'Caliente', icon: Flame,       target: 'caliente', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+    { label: 'Pagado',   icon: CheckCircle, target: 'pagado',   color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
   ],
   verificar_pago: [
-    { label: 'Pagado',         icon: CheckCircle, target: 'pagado',         color: '#22c55e', bg: 'rgba(34,197,94,0.12)'   },
-    { label: 'Frío',           icon: Snowflake,   target: 'frio',           color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
+    { label: 'Pagado', icon: CheckCircle, target: 'pagado', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
+    { label: 'Frío',   icon: Snowflake,   target: 'frio',   color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
   ],
   pagado: [],
 }
