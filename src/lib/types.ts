@@ -6,6 +6,7 @@ export interface Contact {
   phone: string
   name: string | null
   status: ContactStatus
+  scheduled: boolean
   first_contact_at: string
   last_message_at: string
   last_message_preview: string | null

@@ -1,7 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { Flame, Snowflake, DollarSign, CheckCircle, type LucideIcon } from 'lucide-react'
+import { Flame, Snowflake, DollarSign, CheckCircle, Calendar, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateContactStatus } from '@/app/actions'
 import { formatPhone, timeAgo } from '@/lib/utils'
@@ -47,6 +47,7 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const unread = (contact as Contact & { unread?: boolean }).unread === true
+  const isScheduled = contact.scheduled === true
   const actions = STATUS_ACTIONS[contact.status]
   const preview = formatPreview(contact.last_message_preview)
   const phone = formatPhone(contact.phone)
@@ -95,6 +96,11 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
           <span style={{ fontSize: '14px', fontWeight: unread ? 700 : 400, color: unread ? '#fff' : '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.01em', flexShrink: 0 }}>
             {phone}
           </span>
+          {isScheduled && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#818cf8', fontWeight: 600, fontFamily: 'inherit' }}>
+              <Calendar size={10} /> Agendado
+            </span>
+          )}
           <span suppressHydrationWarning style={{ fontSize: '12px', color: unread ? '#f97316' : '#475569', fontWeight: unread ? 600 : 400, flexShrink: 0 }}>
             {timeAgo(contact.last_message_at)}
           </span>

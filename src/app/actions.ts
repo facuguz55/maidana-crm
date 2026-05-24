@@ -50,3 +50,25 @@ export async function saveSettings(data: {
   if (error) throw error
   revalidatePath('/settings')
 }
+
+export async function updateContactName(contactId: string, name: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('contacts')
+    .update({ name: name.trim() || null })
+    .eq('id', contactId)
+  if (error) throw error
+  revalidatePath('/')
+  revalidatePath(`/contact/${contactId}`)
+}
+
+export async function toggleScheduled(contactId: string, scheduled: boolean) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('contacts')
+    .update({ scheduled })
+    .eq('id', contactId)
+  if (error) throw error
+  revalidatePath('/')
+  revalidatePath(`/contact/${contactId}`)
+}

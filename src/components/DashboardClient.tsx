@@ -1,16 +1,19 @@
 'use client'
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react'
-import { Search, RefreshCw, Users } from 'lucide-react'
+import { Search, RefreshCw, Users, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import ContactRow from './ContactRow'
 import type { Contact, ContactStatus } from '@/lib/types'
 
-const TABS: { key: ContactStatus | 'all'; label: string }[] = [
+type TabKey = ContactStatus | 'all' | 'agendado'
+
+const TABS: { key: TabKey; label: string }[] = [
   { key: 'nuevo', label: 'Nuevos' },
   { key: 'caliente', label: 'Calientes' },
   { key: 'verificar_pago', label: 'Verificar pago' },
   { key: 'pagado', label: 'Pagados' },
   { key: 'frio', label: 'Fríos' },
+  { key: 'agendado', label: 'Agendados' },
 ]
 
 const SCROLL_KEY = 'crm_scroll_pos'
@@ -36,7 +39,7 @@ export default function DashboardClient({ initialContacts }: Props) {
     return m
   })
 
-  const [activeTab, setActiveTab] = useState<ContactStatus | 'all'>('nuevo')
+  const [activeTab, setActiveTab] = useState<TabKey>('nuevo')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -135,7 +138,11 @@ export default function DashboardClient({ initialContacts }: Props) {
   const unreadCount = useMemo(() => contacts.filter(c => c.unread).length, [contacts])
 
   const filtered = useMemo(() => {
-    let list = contacts.filter(c => activeTab === 'all' ? true : c.status === activeTab)
+    let list = contacts.filter(c => {
+      if (activeTab === 'all') return true
+      if (activeTab === 'agendado') return c.scheduled === true
+      return c.status === activeTab
+    })
     if (search) {
       const q = search.toLowerCase()
       list = list.filter(c =>
@@ -151,8 +158,13 @@ export default function DashboardClient({ initialContacts }: Props) {
     const m: Record<string, number> = {}
     const u: Record<string, number> = {}
     for (const tab of TABS) {
-      m[tab.key] = contacts.filter(c => c.status === tab.key).length
-      u[tab.key] = contacts.filter(c => c.status === tab.key && c.unread).length
+      if (tab.key === 'agendado') {
+        m[tab.key] = contacts.filter(c => c.scheduled === true).length
+        u[tab.key] = contacts.filter(c => c.scheduled === true && c.unread).length
+      } else {
+        m[tab.key] = contacts.filter(c => c.status === tab.key).length
+        u[tab.key] = contacts.filter(c => c.status === tab.key && c.unread).length
+      }
     }
     return { counts: m, unread: u }
   }, [contacts])

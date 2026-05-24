@@ -1,9 +1,9 @@
 'use client'
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Copy, Check, Send, FileText } from 'lucide-react'
+import { ArrowLeft, Copy, Check, Send, FileText, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateContactStatus, updateContactNotes } from '@/app/actions'
+import { updateContactStatus, updateContactNotes, updateContactName, toggleScheduled } from '@/app/actions'
 import { createClient } from '@/lib/supabase/client'
 import { formatPhone, timeAgo } from '@/lib/utils'
 import type { Contact, ContactStatus, Order, Message } from '@/lib/types'
@@ -31,6 +31,9 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   const [contact, setContact] = useState(initialContact)
   const [notes, setNotes] = useState(contact.notes ?? '')
   const [notesSaved, setNotesSaved] = useState(false)
+  const [contactName, setContactName] = useState(contact.name ?? '')
+  const [nameSaved, setNameSaved] = useState(false)
+  const [scheduled, setScheduled] = useState(contact.scheduled ?? false)
   const [copied, setCopied] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [showPlanilla, setShowPlanilla] = useState(false)
@@ -188,6 +191,29 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     })
   }
 
+  async function handleSaveName() {
+    startTransition(async () => {
+      try {
+        await updateContactName(contact.id, contactName)
+        setContact(prev => ({ ...prev, name: contactName.trim() || null }))
+        setNameSaved(true)
+        setTimeout(() => setNameSaved(false), 2000)
+        toast.success('Nombre guardado')
+      } catch { toast.error('Error al guardar el nombre') }
+    })
+  }
+
+  async function handleToggleScheduled() {
+    const next = !scheduled
+    startTransition(async () => {
+      try {
+        await toggleScheduled(contact.id, next)
+        setScheduled(next)
+        toast.success(next ? '📅 Contacto agendado' : 'Agenda removida')
+      } catch { toast.error('Error al agendar') }
+    })
+  }
+
   async function handleConfirmPago() {
     startTransition(async () => {
       try {
@@ -226,12 +252,31 @@ export default function ContactDetailClient({ contact: initialContact, order, in
         >
           <ArrowLeft size={16} />
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: statusColor, flexShrink: 0, display: 'inline-block' }} />
           <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>{displayName}</h1>
           <span style={{ fontSize: '13px', color: '#64748b' }}>{formatPhone(contact.phone)}</span>
           <span suppressHydrationWarning style={{ fontSize: '12px', color: '#475569' }}>· {timeAgo(contact.last_message_at)}</span>
+          {scheduled && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: '999px', fontSize: '11px', color: '#818cf8', fontWeight: 600 }}>
+              <Calendar size={10} /> Agendado
+            </span>
+          )}
         </div>
+        <button
+          onClick={handleToggleScheduled}
+          disabled={isPending}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px',
+            background: scheduled ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.08)',
+            border: `1px solid ${scheduled ? 'rgba(99,102,241,0.5)' : 'rgba(99,102,241,0.25)'}`,
+            borderRadius: '8px', color: scheduled ? '#818cf8' : '#64748b',
+            fontSize: '13px', fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+          }}
+        >
+          <Calendar size={14} />
+          {scheduled ? 'Agendado ✓' : 'Agendar contacto'}
+        </button>
       </div>
 
       {/* Two-column layout */}
@@ -310,6 +355,34 @@ export default function ContactDetailClient({ contact: initialContact, order, in
               </div>
             </Section>
           )}
+
+          <Section title="Nombre del contacto">
+            <input
+              value={contactName}
+              onChange={e => setContactName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveName() }}
+              placeholder="Ej: Juan García"
+              style={{
+                width: '100%', padding: '10px', background: '#0d1526',
+                border: '1px solid #1e2d45', borderRadius: '8px',
+                color: '#f8fafc', fontSize: '13px',
+                outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+              }}
+            />
+            <button
+              onClick={handleSaveName}
+              disabled={isPending}
+              style={{
+                marginTop: '8px', padding: '7px 16px', borderRadius: '7px', fontSize: '13px',
+                fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                background: nameSaved ? 'rgba(34,197,94,0.12)' : 'rgba(99,102,241,0.12)',
+                border: `1px solid ${nameSaved ? '#22c55e40' : 'rgba(99,102,241,0.3)'}`,
+                color: nameSaved ? '#22c55e' : '#818cf8',
+              }}
+            >
+              {nameSaved ? '✅ Guardado' : 'Guardar nombre'}
+            </button>
+          </Section>
 
           <Section title="Notas internas">
             <textarea
