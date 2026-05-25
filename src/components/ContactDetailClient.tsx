@@ -222,17 +222,19 @@ export default function ContactDetailClient({ contact: initialContact, order, in
 
   async function sendMedia(mediaType: 'image' | 'audio', base64: string, mimeType: string, caption?: string) {
     setSending(true)
-    // Mostrar preview local inmediatamente (base64) mientras se sube
+    const body = caption || (mediaType === 'image' ? '📷 Imagen' : '🎵 Audio')
     const tempId = crypto.randomUUID()
     const optimistic: Message = {
       id: tempId,
       contact_id: contact.id,
-      body: caption || (mediaType === 'image' ? '📷 Imagen' : '🎵 Audio'),
+      body,
       direction: 'outbound',
       timestamp: new Date().toISOString(),
       media_type: mediaType,
       media_url: base64,
     }
+    // Registrar en pending para que el realtime no duplique cuando el DB insert dispare
+    pendingOutbound.current.add(body)
     setMessages(prev => [...prev, optimistic])
     setImagePreview(null)
     try {
@@ -243,17 +245,17 @@ export default function ContactDetailClient({ contact: initialContact, order, in
       })
       if (!res.ok) {
         const err = await res.json()
-        // Revertir optimistic si falla
+        pendingOutbound.current.delete(body)
         setMessages(prev => prev.filter(m => m.id !== tempId))
         toast.error(err.error || 'Error al enviar')
         return
       }
-      // Reemplazar optimistic con URL pública si la API la devuelve
       const result = await res.json()
       if (result.url) {
         setMessages(prev => prev.map(m => m.id === tempId ? { ...m, media_url: result.url } : m))
       }
     } catch {
+      pendingOutbound.current.delete(body)
       setMessages(prev => prev.filter(m => m.id !== tempId))
       toast.error('Error de red al enviar')
     }
