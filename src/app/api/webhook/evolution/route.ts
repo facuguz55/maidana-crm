@@ -9,34 +9,22 @@ const supabase = createClient(
 type MediaType = 'image' | 'audio' | 'video' | 'document' | 'sticker'
 
 const MEDIA_TYPE_MAP: Record<string, MediaType> = {
-  imageMessage:    'image',
-  ImageMessage:    'image',
-  videoMessage:    'video',
-  VideoMessage:    'video',
-  audioMessage:    'audio',
-  AudioMessage:    'audio',
-  pttMessage:      'audio',
-  PTTMessage:      'audio',
-  documentMessage: 'document',
-  DocumentMessage: 'document',
-  stickerMessage:  'sticker',
-  StickerMessage:  'sticker',
+  imageMessage:    'image',   ImageMessage:    'image',
+  videoMessage:    'video',   VideoMessage:    'video',
+  audioMessage:    'audio',   AudioMessage:    'audio',
+  pttMessage:      'audio',   PTTMessage:      'audio',
+  documentMessage: 'document',DocumentMessage: 'document',
+  stickerMessage:  'sticker', StickerMessage:  'sticker',
 }
 
-const MIME_MAP: Record<MediaType, string> = {
-  image:    'image/jpeg',
-  audio:    'audio/ogg',
-  video:    'video/mp4',
-  document: 'application/octet-stream',
-  sticker:  'image/webp',
+const MIME_DEFAULTS: Record<MediaType, string> = {
+  image: 'image/jpeg', audio: 'audio/ogg', video: 'video/mp4',
+  document: 'application/octet-stream', sticker: 'image/webp',
 }
 
 const MEDIA_LABELS: Record<MediaType, string> = {
-  image:    '📷 Imagen',
-  audio:    '🎵 Audio',
-  video:    '🎥 Video',
-  document: '📄 Documento',
-  sticker:  '🔖 Sticker',
+  image: '📷 Imagen', audio: '🎵 Audio', video: '🎥 Video',
+  document: '📄 Documento', sticker: '🔖 Sticker',
 }
 
 function detectMediaType(msg: Record<string, unknown>): MediaType | null {
@@ -46,17 +34,69 @@ function detectMediaType(msg: Record<string, unknown>): MediaType | null {
   return null
 }
 
-function getMimeFromMessage(msg: Record<string, unknown>, mediaType: MediaType): string {
+function getMime(msg: Record<string, unknown>, mediaType: MediaType): string {
   for (const key of Object.keys(MEDIA_TYPE_MAP)) {
     const m = msg[key] as Record<string, unknown> | undefined
     if (m && typeof m.mimetype === 'string') return m.mimetype
   }
-  return MIME_MAP[mediaType]
+  return MIME_DEFAULTS[mediaType]
 }
 
-function buildDataUrl(base64: string, mimeType: string): string {
-  const clean = base64.replace(/^data:[^;]+;base64,/, '')
-  return `data:${mimeType};base64,${clean}`
+function extFromMime(mimeType: string): string {
+  const map: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+    'image/webp': 'webp', 'audio/ogg': 'ogg', 'audio/webm': 'webm',
+    'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'video/mp4': 'mp4',
+    'image/heic': 'heic', 'audio/opus': 'opus',
+  }
+  return map[mimeType] || mimeType.split('/')[1] || 'bin'
+}
+
+// Sube base64 a Supabase Storage y devuelve URL pública
+async function uploadBase64ToStorage(
+  base64: string,
+  mimeType: string,
+  contactId: string,
+): Promise<string | null> {
+  try {
+    const clean = base64.replace(/^data:[^;]+;base64,/, '')
+    const buffer = Buffer.from(clean, 'base64')
+    const ext = extFromMime(mimeType)
+    const path = `${contactId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+    const { error } = await supabase.storage
+      .from('crm-media')
+      .upload(path, buffer, { contentType: mimeType, upsert: false })
+
+    if (error) { console.error('[webhook] Storage upload:', error.message); return null }
+
+    const { data: { publicUrl } } = supabase.storage.from('crm-media').getPublicUrl(path)
+    return publicUrl
+  } catch (e) {
+    console.error('[webhook] uploadBase64ToStorage:', e)
+    return null
+  }
+}
+
+// Llama a /message/downloadimage para obtener base64 de la imagen
+async function downloadMediaFromEvolution(
+  apiBase: string,
+  apiKey: string,
+  wamid: string,
+  remoteJid: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${apiBase}/message/downloadimage`, {
+      method: 'POST',
+      headers: { 'apikey': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId: wamid, remoteJid }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    // La respuesta puede ser { base64: "..." } o directamente un string
+    const b64 = data?.base64 || data?.data || (typeof data === 'string' ? data : null)
+    return b64 || null
+  } catch { return null }
 }
 
 export async function POST(req: NextRequest) {
@@ -74,32 +114,54 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, skipped: 'group or lid' })
       }
 
-      const tiposIgnorar = ['ReactionMessage', 'ProtocolMessage']
-      if (tiposIgnorar.includes(info.Type)) {
+      const ignored = ['ReactionMessage', 'ProtocolMessage']
+      if (ignored.includes(info.Type)) {
         return NextResponse.json({ ok: true, skipped: 'ignored type' })
       }
 
       const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '')
-      const goMsg = body.data?.Message as Record<string, unknown> | undefined
-      const mediaType = goMsg ? detectMediaType(goMsg) : null
+      const remoteJid = `${cleanPhone}@s.whatsapp.net`
+      const goMsg = (body.data?.Message ?? {}) as Record<string, unknown>
+      const mediaType = detectMediaType(goMsg)
 
       const messageText: string =
-        goMsg?.conversation as string ||
-        (goMsg?.extendedTextMessage as Record<string, string> | undefined)?.text ||
-        (goMsg?.imageMessage as Record<string, string> | undefined)?.caption ||
-        (goMsg?.videoMessage as Record<string, string> | undefined)?.caption ||
+        (goMsg.conversation as string) ||
+        ((goMsg.extendedTextMessage as Record<string,string> | undefined)?.text) ||
+        ((goMsg.imageMessage as Record<string,string> | undefined)?.caption) ||
+        ((goMsg.videoMessage as Record<string,string> | undefined)?.caption) ||
         (mediaType ? MEDIA_LABELS[mediaType] : null) ||
         '[media]'
 
-      const rawBase64: string | null = body.data?.Base64 || body.Base64 || null
-      let mediaUrl: string | null = null
-      if (rawBase64 && mediaType) {
-        const mime = goMsg ? getMimeFromMessage(goMsg, mediaType) : MIME_MAP[mediaType]
-        mediaUrl = buildDataUrl(rawBase64, mime)
-      }
-
       const wamid: string | null = info.ID || null
       const isFromMe: boolean = info.IsFromMe === true
+
+      // Resolver media URL
+      let mediaUrl: string | null = null
+      if (mediaType) {
+        const rawB64: string | null = body.data?.Base64 || body.Base64 || null
+        const mime = getMime(goMsg, mediaType)
+
+        if (rawB64) {
+          // Subir base64 del payload a Storage
+          const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
+          if (contactForUpload) {
+            mediaUrl = await uploadBase64ToStorage(rawB64, mime, contactForUpload)
+          }
+        } else if (wamid && (mediaType === 'image' || mediaType === 'video' || mediaType === 'document')) {
+          // Descargar imagen desde Evolution API
+          const { data: settings } = await supabase.from('settings').select('evolution_api_url, evolution_api_key').eq('id', 1).single()
+          if (settings?.evolution_api_url) {
+            const apiBase = settings.evolution_api_url.replace(/\/$/, '')
+            const b64 = await downloadMediaFromEvolution(apiBase, settings.evolution_api_key, wamid, remoteJid)
+            if (b64) {
+              const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
+              if (contactForUpload) {
+                mediaUrl = await uploadBase64ToStorage(b64, mime, contactForUpload)
+              }
+            }
+          }
+        }
+      }
 
       if (isFromMe) {
         await saveOutbound(cleanPhone, messageText, wamid, mediaType, mediaUrl)
@@ -125,25 +187,44 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '')
+    const remoteJid = `${cleanPhone}@s.whatsapp.net`
     const nodeMsg = (message?.message || {}) as Record<string, unknown>
     const mediaType = detectMediaType(nodeMsg)
 
     const messageText: string =
-      nodeMsg.conversation as string ||
-      (nodeMsg.extendedTextMessage as Record<string, string> | undefined)?.text ||
-      (nodeMsg.imageMessage as Record<string, string> | undefined)?.caption ||
-      (nodeMsg.videoMessage as Record<string, string> | undefined)?.caption ||
+      (nodeMsg.conversation as string) ||
+      ((nodeMsg.extendedTextMessage as Record<string,string> | undefined)?.text) ||
+      ((nodeMsg.imageMessage as Record<string,string> | undefined)?.caption) ||
+      ((nodeMsg.videoMessage as Record<string,string> | undefined)?.caption) ||
       (mediaType ? MEDIA_LABELS[mediaType] : null) ||
       '[media]'
 
-    const rawBase64: string | null = message?.base64 || data?.base64 || body?.base64 || null
-    let mediaUrl: string | null = null
-    if (rawBase64 && mediaType) {
-      const mime = getMimeFromMessage(nodeMsg, mediaType)
-      mediaUrl = buildDataUrl(rawBase64, mime)
-    }
-
     const wamid: string | null = message?.key?.id || null
+
+    let mediaUrl: string | null = null
+    if (mediaType) {
+      const rawB64: string | null = message?.base64 || data?.base64 || body?.base64 || null
+      const mime = getMime(nodeMsg, mediaType)
+
+      if (rawB64) {
+        const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, fromMe)
+        if (contactForUpload) {
+          mediaUrl = await uploadBase64ToStorage(rawB64, mime, contactForUpload)
+        }
+      } else if (wamid && (mediaType === 'image' || mediaType === 'video' || mediaType === 'document')) {
+        const { data: settings } = await supabase.from('settings').select('evolution_api_url, evolution_api_key').eq('id', 1).single()
+        if (settings?.evolution_api_url) {
+          const apiBase = settings.evolution_api_url.replace(/\/$/, '')
+          const b64 = await downloadMediaFromEvolution(apiBase, settings.evolution_api_key, wamid, remoteJid)
+          if (b64) {
+            const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, fromMe)
+            if (contactForUpload) {
+              mediaUrl = await uploadBase64ToStorage(b64, mime, contactForUpload)
+            }
+          }
+        }
+      }
+    }
 
     if (fromMe) {
       await saveOutbound(cleanPhone, messageText, wamid, mediaType, mediaUrl)
@@ -158,6 +239,17 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Obtiene el ID del contacto (o null) sin crear ni actualizar — solo para subir media
+async function getOrCreateContact(
+  phone: string,
+  _messageText: string,
+  _mediaType: MediaType | null,
+  _isFromMe: boolean,
+): Promise<string | null> {
+  const { data } = await supabase.from('contacts').select('id').eq('phone', phone).single()
+  return data?.id ?? null
+}
+
 async function upsertContactAndMessage(
   phone: string,
   messageText: string,
@@ -168,23 +260,17 @@ async function upsertContactAndMessage(
   const now = new Date().toISOString()
   const preview = mediaType ? MEDIA_LABELS[mediaType] : messageText.slice(0, 100)
 
-  const { data: existing } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('phone', phone)
-    .single()
+  const { data: existing } = await supabase.from('contacts').select('id').eq('phone', phone).single()
 
   let contactId: string | undefined
 
   if (existing) {
     contactId = existing.id
-    await supabase
-      .from('contacts')
+    await supabase.from('contacts')
       .update({ last_message_at: now, last_message_preview: preview, unread: true })
       .eq('id', existing.id)
   } else {
-    const { data: inserted } = await supabase
-      .from('contacts')
+    const { data: inserted } = await supabase.from('contacts')
       .insert({ phone, status: 'nuevo', first_contact_at: now, last_message_at: now, last_message_preview: preview, unread: true })
       .select('id')
       .single()

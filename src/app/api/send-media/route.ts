@@ -15,6 +15,40 @@ const MEDIA_LABELS: Record<MediaType, string> = {
   document: '📄 Documento',
 }
 
+// Extensión de archivo por mime type
+function extFromMime(mimeType: string): string {
+  const map: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
+    'image/gif': 'gif', 'image/webp': 'webp', 'image/heic': 'heic',
+    'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/mp4': 'm4a',
+    'audio/mpeg': 'mp3', 'audio/opus': 'opus',
+    'video/mp4': 'mp4', 'application/pdf': 'pdf',
+  }
+  return map[mimeType] || mimeType.split('/')[1] || 'bin'
+}
+
+// Sube base64 a Supabase Storage y devuelve la URL pública
+async function uploadToStorage(
+  base64: string,
+  mimeType: string,
+  contactId: string,
+  mediaType: MediaType,
+): Promise<string> {
+  const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '')
+  const buffer = Buffer.from(cleanBase64, 'base64')
+  const ext = extFromMime(mimeType)
+  const path = `${contactId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('crm-media')
+    .upload(path, buffer, { contentType: mimeType, upsert: false })
+
+  if (error) throw new Error(`Storage: ${error.message}`)
+
+  const { data: { publicUrl } } = supabase.storage.from('crm-media').getPublicUrl(path)
+  return publicUrl
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { contactId, phone, mediaType, base64, mimeType, caption, fileName } = await req.json()
@@ -33,55 +67,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Evolution API no configurada' }, { status: 400 })
     }
 
-    const base = settings.evolution_api_url.replace(/\/$/, '')
-    const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '')
-
-    let evoRes: Response | null = null
-
-    if (mediaType === 'audio') {
-      // PTT / voz — intentar Node.js primero, luego GO
-      evoRes = await fetch(`${base}/message/sendWhatsAppAudio/${settings.instance_name}`, {
-        method: 'POST',
-        headers: { 'apikey': settings.evolution_api_key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number: phone, audio: cleanBase64, delay: 0, encoding: true }),
-      })
-      if (!evoRes.ok) {
-        evoRes = await fetch(`${base}/send/audio`, {
-          method: 'POST',
-          headers: { 'apikey': settings.evolution_api_key, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number: phone, audio: cleanBase64 }),
-        })
-      }
-    } else {
-      // Imagen / video / documento — intentar Node.js primero, luego GO
-      evoRes = await fetch(`${base}/message/sendMedia/${settings.instance_name}`, {
-        method: 'POST',
-        headers: { 'apikey': settings.evolution_api_key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          number: phone,
-          mediatype: mediaType,
-          media: cleanBase64,
-          caption: caption || '',
-          fileName: fileName || `archivo.${mimeType?.split('/')[1] || 'bin'}`,
-        }),
-      })
-      if (!evoRes.ok) {
-        evoRes = await fetch(`${base}/send/media`, {
-          method: 'POST',
-          headers: { 'apikey': settings.evolution_api_key, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            number: phone,
-            media: cleanBase64,
-            caption: caption || '',
-            fileName: fileName || `archivo.${mimeType?.split('/')[1] || 'bin'}`,
-            mediaType: mediaType,
-          }),
-        })
-      }
+    // 1. Subir a Supabase Storage → obtener URL pública
+    let publicUrl: string
+    try {
+      publicUrl = await uploadToStorage(base64, mimeType || 'application/octet-stream', contactId, mediaType)
+    } catch (err) {
+      console.error('[send-media] Storage upload failed:', err)
+      return NextResponse.json({ error: `Error al subir archivo: ${err}` }, { status: 500 })
     }
 
-    if (!evoRes || !evoRes.ok) {
-      const errText = await evoRes?.text() || 'sin respuesta'
+    // 2. Enviar a Evolution GO API con la URL
+    const base = settings.evolution_api_url.replace(/\/$/, '')
+    const ext = extFromMime(mimeType || 'application/octet-stream')
+
+    // Evolution GO: /send/media con mediatype
+    // Para audio PTT usamos "ptt", para el resto el tipo directo
+    const evolutionMediaType = mediaType === 'audio' ? 'ptt' : mediaType
+
+    const evoBody = {
+      number: phone,
+      mediatype: evolutionMediaType,
+      mediaUrl: publicUrl,
+      caption: caption || '',
+      fileName: fileName || `${mediaType}-${Date.now()}.${ext}`,
+      mimetype: mimeType || '',
+    }
+
+    const evoRes = await fetch(`${base}/send/media`, {
+      method: 'POST',
+      headers: {
+        'apikey': settings.evolution_api_key,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(evoBody),
+    })
+
+    if (!evoRes.ok) {
+      const errText = await evoRes.text()
+      console.error('[send-media] Evolution API error:', errText)
       return NextResponse.json({ error: `Evolution API: ${errText}` }, { status: 502 })
     }
 
@@ -91,23 +114,23 @@ export async function POST(req: NextRequest) {
       wamid = evoData?.key?.id || evoData?.wuid || null
     } catch {}
 
-    const mediaUrl = `data:${mimeType};base64,${cleanBase64}`
+    // 3. Guardar en DB con la URL pública (no base64)
     const body = caption || MEDIA_LABELS[mediaType as MediaType] || '[media]'
 
-    const { error } = await supabase.from('messages').insert({
+    const { error: dbError } = await supabase.from('messages').insert({
       contact_id: contactId,
       body,
       direction: 'outbound',
       timestamp: new Date().toISOString(),
       wamid,
       media_type: mediaType,
-      media_url: mediaUrl,
+      media_url: publicUrl,
     })
-    if (error && error.code !== '23505') {
-      console.error('[send-media insert]', error)
+    if (dbError && dbError.code !== '23505') {
+      console.error('[send-media insert]', dbError)
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, url: publicUrl })
   } catch (err) {
     console.error('[send-media]', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

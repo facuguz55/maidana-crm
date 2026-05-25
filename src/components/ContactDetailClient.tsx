@@ -222,25 +222,41 @@ export default function ContactDetailClient({ contact: initialContact, order, in
 
   async function sendMedia(mediaType: 'image' | 'audio', base64: string, mimeType: string, caption?: string) {
     setSending(true)
+    // Mostrar preview local inmediatamente (base64) mientras se sube
+    const tempId = crypto.randomUUID()
+    const optimistic: Message = {
+      id: tempId,
+      contact_id: contact.id,
+      body: caption || (mediaType === 'image' ? '📷 Imagen' : '🎵 Audio'),
+      direction: 'outbound',
+      timestamp: new Date().toISOString(),
+      media_type: mediaType,
+      media_url: base64,
+    }
+    setMessages(prev => [...prev, optimistic])
+    setImagePreview(null)
     try {
       const res = await fetch('/api/send-media', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contactId: contact.id, phone: contact.phone, mediaType, base64, mimeType, caption }),
       })
-      if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Error al enviar'); return }
-      const optimistic: Message = {
-        id: crypto.randomUUID(),
-        contact_id: contact.id,
-        body: caption || (mediaType === 'image' ? '📷 Imagen' : '🎵 Audio'),
-        direction: 'outbound',
-        timestamp: new Date().toISOString(),
-        media_type: mediaType,
-        media_url: base64,
+      if (!res.ok) {
+        const err = await res.json()
+        // Revertir optimistic si falla
+        setMessages(prev => prev.filter(m => m.id !== tempId))
+        toast.error(err.error || 'Error al enviar')
+        return
       }
-      setMessages(prev => [...prev, optimistic])
-      setImagePreview(null)
-    } catch { toast.error('Error de red al enviar') }
+      // Reemplazar optimistic con URL pública si la API la devuelve
+      const result = await res.json()
+      if (result.url) {
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, media_url: result.url } : m))
+      }
+    } catch {
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      toast.error('Error de red al enviar')
+    }
     finally { setSending(false) }
   }
 
@@ -288,25 +304,10 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     recorder.stream.getTracks().forEach(t => t.stop())
     await new Promise<void>(resolve => { recorder.onstop = () => resolve() })
     const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
-    const { id: cId, phone: cPhone } = contactRef.current
     const reader = new FileReader()
     reader.onload = async () => {
       const base64 = reader.result as string
-      setSending(true)
-      try {
-        const res = await fetch('/api/send-media', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contactId: cId, phone: cPhone, mediaType: 'audio', base64, mimeType: blob.type }),
-        })
-        if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Error al enviar audio'); return }
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(), contact_id: cId, body: '🎵 Audio',
-          direction: 'outbound', timestamp: new Date().toISOString(),
-          media_type: 'audio', media_url: base64,
-        }])
-      } catch { toast.error('Error de red al enviar audio') }
-      finally { setSending(false) }
+      await sendMedia('audio', base64, blob.type)
     }
     reader.readAsDataURL(blob)
   }
