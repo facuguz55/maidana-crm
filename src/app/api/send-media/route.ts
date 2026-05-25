@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     const evoBody = {
       number: phone,
       mediatype: evolutionMediaType,
-      mediaUrl: publicUrl,
+      url: publicUrl,        // Evolution GO usa "url" (no "mediaUrl")
       caption: caption || '',
       fileName: fileName || `${mediaType}-${Date.now()}.${ext}`,
       mimetype: mimeType || '',
