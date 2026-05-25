@@ -141,11 +141,11 @@ export async function POST(req: NextRequest) {
       // Resolver media URL
       let mediaUrl: string | null = null
       if (mediaType) {
-        const rawB64: string | null = body.data?.Base64 || body.Base64 || body.data?.Data || null
+        // Evolution GO pone el base64 en body.data.Message.base64 (goMsg.base64)
+        const rawB64: string | null =
+          (goMsg.base64 as string | null) ||
+          body.data?.Base64 || body.Base64 || body.data?.Data || null
         const mime = getMime(goMsg, mediaType)
-        console.log(`[WH1] tp=${mediaType} b64=${!!rawB64} wamid=${!!wamid}`)
-        // Guardar goMsg en settings para debug (campo debug_payload)
-        await supabase.from('settings').update({ debug_payload: JSON.stringify(goMsg).slice(0, 3000) }).eq('id', 1)
 
         if (rawB64) {
           const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
