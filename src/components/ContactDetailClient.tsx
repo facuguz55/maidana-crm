@@ -1,7 +1,7 @@
 'use client'
-import { useState, useTransition, useEffect, useRef } from 'react'
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Copy, Check, Send, FileText, Calendar } from 'lucide-react'
+import { ArrowLeft, Copy, Check, Send, FileText, Calendar, Paperclip, Mic, MicOff, X, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateContactStatus, updateContactNotes, updateContactName, toggleScheduled } from '@/app/actions'
 import { createClient } from '@/lib/supabase/client'
@@ -40,8 +40,15 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   const [messageText, setMessageText] = useState('')
   const [sending, setSending] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pendingOutbound = useRef<Set<string>>(new Set())
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -154,7 +161,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
       if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Error al enviar'); return }
       // Registro en pending para que el webhook outbound no duplique
       pendingOutbound.current.add(text)
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), contact_id: contact.id, body: text, direction: 'outbound', timestamp: new Date().toISOString() }])
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), contact_id: contact.id, body: text, direction: 'outbound', timestamp: new Date().toISOString(), media_type: null, media_url: null }])
       setMessageText('')
     } catch { toast.error('Error de red al enviar') }
     finally { setSending(false) }
@@ -212,6 +219,78 @@ export default function ContactDetailClient({ contact: initialContact, order, in
       } catch { toast.error('Error al agendar') }
     })
   }
+
+  async function sendMedia(mediaType: 'image' | 'audio', base64: string, mimeType: string, caption?: string) {
+    setSending(true)
+    try {
+      const res = await fetch('/api/send-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: contact.id, phone: contact.phone, mediaType, base64, mimeType, caption }),
+      })
+      if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Error al enviar'); return }
+      const optimistic: Message = {
+        id: crypto.randomUUID(),
+        contact_id: contact.id,
+        body: caption || (mediaType === 'image' ? '📷 Imagen' : '🎵 Audio'),
+        direction: 'outbound',
+        timestamp: new Date().toISOString(),
+        media_type: mediaType,
+        media_url: base64,
+      }
+      setMessages(prev => [...prev, optimistic])
+      setImagePreview(null)
+    } catch { toast.error('Error de red al enviar') }
+    finally { setSending(false) }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { toast.error('Imagen demasiado grande (máx 10MB)'); return }
+    const reader = new FileReader()
+    reader.onload = () => setImagePreview(reader.result as string)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  async function handleSendImage() {
+    if (!imagePreview) return
+    const mimeType = imagePreview.split(';')[0].split(':')[1] || 'image/jpeg'
+    await sendMedia('image', imagePreview, mimeType)
+  }
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+      recorder.start(100)
+      mediaRecorderRef.current = recorder
+      setIsRecording(true)
+      setRecordingSeconds(0)
+      recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
+    } catch { toast.error('No se pudo acceder al micrófono') }
+  }, [])
+
+  const stopRecording = useCallback(async () => {
+    const recorder = mediaRecorderRef.current
+    if (!recorder || recorder.state === 'inactive') return
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+    setIsRecording(false)
+    setRecordingSeconds(0)
+    recorder.stop()
+    recorder.stream.getTracks().forEach(t => t.stop())
+    await new Promise<void>(resolve => { recorder.onstop = () => resolve() })
+    const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const base64 = reader.result as string
+      await sendMedia('audio', base64, blob.type)
+    }
+    reader.readAsDataURL(blob)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleConfirmPago() {
     startTransition(async () => {
@@ -413,30 +492,85 @@ export default function ContactDetailClient({ contact: initialContact, order, in
             {messages.map(msg => (
               <div key={msg.id} style={{ display: 'flex', justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
-                  maxWidth: '65%', padding: '10px 14px', fontSize: '13px', lineHeight: 1.5,
+                  maxWidth: '70%', padding: msg.media_type === 'image' ? '6px' : '10px 14px', fontSize: '13px', lineHeight: 1.5,
                   borderRadius: msg.direction === 'outbound' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
                   background: msg.direction === 'outbound' ? '#f97316' : '#1e293b',
                   border: msg.direction === 'outbound' ? 'none' : '1px solid #1e2d45',
                   color: msg.direction === 'outbound' ? '#fff' : '#f8fafc',
-                  wordBreak: 'break-word',
+                  wordBreak: 'break-word', overflow: 'hidden',
                 }}>
-                  <p>{msg.body}</p>
-                  <p style={{ fontSize: '10px', opacity: 0.65, marginTop: '4px', textAlign: 'right' }}>
-                    {formatMsgTime(msg.timestamp)}
-                  </p>
+                  {msg.media_type === 'image' && msg.media_url ? (
+                    <div>
+                      <img
+                        src={msg.media_url}
+                        alt="imagen"
+                        style={{ display: 'block', maxWidth: '100%', maxHeight: '280px', borderRadius: '8px', cursor: 'pointer', objectFit: 'cover' }}
+                        onClick={() => window.open(msg.media_url!, '_blank')}
+                      />
+                      {msg.body && !['📷 Imagen', '[media]'].includes(msg.body) && (
+                        <p style={{ padding: '6px 8px 2px', margin: 0 }}>{msg.body}</p>
+                      )}
+                      <p style={{ fontSize: '10px', opacity: 0.65, margin: '4px 8px 4px', textAlign: 'right' }}>{formatMsgTime(msg.timestamp)}</p>
+                    </div>
+                  ) : msg.media_type === 'audio' && msg.media_url ? (
+                    <div style={{ padding: '4px 0' }}>
+                      <audio controls src={msg.media_url} style={{ height: '36px', maxWidth: '260px', filter: msg.direction === 'outbound' ? 'invert(1) hue-rotate(180deg)' : 'none' }} />
+                      <p style={{ fontSize: '10px', opacity: 0.65, marginTop: '4px', textAlign: 'right' }}>{formatMsgTime(msg.timestamp)}</p>
+                    </div>
+                  ) : msg.media_type === 'audio' ? (
+                    <div>
+                      <p style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                        <Play size={14} /> Audio (sin previsualización)
+                      </p>
+                      <p style={{ fontSize: '10px', opacity: 0.65, marginTop: '4px', textAlign: 'right' }}>{formatMsgTime(msg.timestamp)}</p>
+                    </div>
+                  ) : msg.media_type === 'video' && msg.media_url ? (
+                    <div>
+                      <video controls src={msg.media_url} style={{ maxWidth: '100%', maxHeight: '280px', borderRadius: '8px' }} />
+                      <p style={{ fontSize: '10px', opacity: 0.65, margin: '4px 0 0', textAlign: 'right' }}>{formatMsgTime(msg.timestamp)}</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p style={{ margin: 0 }}>{msg.body}</p>
+                      <p style={{ fontSize: '10px', opacity: 0.65, marginTop: '4px', textAlign: 'right' }}>{formatMsgTime(msg.timestamp)}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Preview de imagen antes de enviar */}
+          {imagePreview && (
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #1e2d45', background: '#0d1526', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <img src={imagePreview} alt="preview" style={{ height: '80px', maxWidth: '140px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #1e2d45' }} />
+                <button
+                  onClick={() => setImagePreview(null)}
+                  style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <X size={11} />
+                </button>
+              </div>
+              <button
+                onClick={handleSendImage}
+                disabled={sending}
+                style={{ padding: '8px 16px', background: '#f97316', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: sending ? 'default' : 'pointer' }}
+              >
+                {sending ? 'Enviando...' : 'Enviar imagen'}
+              </button>
+            </div>
+          )}
+
           {/* Input */}
-          <div style={{ borderTop: '1px solid #1e2d45', padding: '14px 16px', background: '#0d1526' }}>
+          <div style={{ borderTop: '1px solid #1e2d45', padding: '10px 16px', background: '#0d1526' }}>
+            {/* Formulario */}
             <button
               onClick={handleSendForm}
               disabled={sending}
               style={{
-                width: '100%', marginBottom: '10px', padding: '8px',
+                width: '100%', marginBottom: '8px', padding: '7px',
                 background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)',
                 borderRadius: '8px', color: '#3b82f6', fontSize: '13px', fontWeight: 600,
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
@@ -445,36 +579,76 @@ export default function ContactDetailClient({ contact: initialContact, order, in
               <FileText size={14} />
               Enviar Formulario
             </button>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-              <textarea
-                value={messageText}
-                onChange={e => setMessageText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(messageText) } }}
-                placeholder="Escribí un mensaje... (Enter para enviar)"
-                rows={2}
-                style={{
-                  flex: 1, padding: '10px 14px', background: '#1e293b',
-                  border: '1px solid #1e2d45', borderRadius: '10px',
-                  color: '#f8fafc', fontSize: '13px', resize: 'none',
-                  outline: 'none', fontFamily: 'inherit', lineHeight: 1.4,
-                  maxHeight: '120px',
-                }}
-              />
-              <button
-                onClick={() => sendMessage(messageText)}
-                disabled={sending || !messageText.trim()}
-                style={{
-                  width: '42px', height: '42px', borderRadius: '10px', flexShrink: 0,
-                  background: messageText.trim() && !sending ? '#f97316' : '#1e293b',
-                  border: 'none', cursor: messageText.trim() && !sending ? 'pointer' : 'default',
-                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'background 0.15s',
-                }}
-              >
-                <Send size={16} />
-              </button>
-            </div>
+
+            {/* Grabación activa */}
+            {isRecording && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
+                <span style={{ color: '#f8fafc', fontSize: '13px', flex: 1 }}>
+                  Grabando... {Math.floor(recordingSeconds / 60).toString().padStart(2, '0')}:{(recordingSeconds % 60).toString().padStart(2, '0')}
+                </span>
+                <button
+                  onClick={stopRecording}
+                  style={{ padding: '6px 14px', background: '#ef4444', border: 'none', borderRadius: '7px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <MicOff size={14} /> Enviar
+                </button>
+              </div>
+            )}
+
+            {/* Input de texto + botones */}
+            {!isRecording && (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+                {/* Adjuntar imagen */}
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Adjuntar imagen"
+                  style={{ width: '40px', height: '40px', flexShrink: 0, background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '10px', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Paperclip size={16} />
+                </button>
+
+                {/* Textarea */}
+                <textarea
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(messageText) } }}
+                  placeholder="Escribí un mensaje... (Enter para enviar)"
+                  rows={2}
+                  style={{
+                    flex: 1, padding: '10px 14px', background: '#1e293b',
+                    border: '1px solid #1e2d45', borderRadius: '10px',
+                    color: '#f8fafc', fontSize: '13px', resize: 'none',
+                    outline: 'none', fontFamily: 'inherit', lineHeight: 1.4,
+                    maxHeight: '120px',
+                  }}
+                />
+
+                {/* Micrófono o enviar */}
+                {messageText.trim() ? (
+                  <button
+                    onClick={() => sendMessage(messageText)}
+                    disabled={sending}
+                    style={{ width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0, background: '#f97316', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Send size={16} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={startRecording}
+                    title="Grabar audio"
+                    style={{ width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0, background: '#1e293b', border: '1px solid #1e2d45', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Mic size={16} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+          <style>{`
+            @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+          `}</style>
         </div>
       </div>
     </div>

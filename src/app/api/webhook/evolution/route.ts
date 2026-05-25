@@ -6,13 +6,57 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const MEDIA_LABELS: Record<string, string> = {
-  ImageMessage:    '📷 Imagen',
-  VideoMessage:    '🎥 Video',
-  AudioMessage:    '🎵 Audio',
-  DocumentMessage: '📄 Documento',
-  StickerMessage:  '🔖 Sticker',
-  PTTMessage:      '🎵 Audio',
+type MediaType = 'image' | 'audio' | 'video' | 'document' | 'sticker'
+
+const MEDIA_TYPE_MAP: Record<string, MediaType> = {
+  imageMessage:    'image',
+  ImageMessage:    'image',
+  videoMessage:    'video',
+  VideoMessage:    'video',
+  audioMessage:    'audio',
+  AudioMessage:    'audio',
+  pttMessage:      'audio',
+  PTTMessage:      'audio',
+  documentMessage: 'document',
+  DocumentMessage: 'document',
+  stickerMessage:  'sticker',
+  StickerMessage:  'sticker',
+}
+
+const MIME_MAP: Record<MediaType, string> = {
+  image:    'image/jpeg',
+  audio:    'audio/ogg',
+  video:    'video/mp4',
+  document: 'application/octet-stream',
+  sticker:  'image/webp',
+}
+
+const MEDIA_LABELS: Record<MediaType, string> = {
+  image:    '📷 Imagen',
+  audio:    '🎵 Audio',
+  video:    '🎥 Video',
+  document: '📄 Documento',
+  sticker:  '🔖 Sticker',
+}
+
+function detectMediaType(msg: Record<string, unknown>): MediaType | null {
+  for (const [key, type] of Object.entries(MEDIA_TYPE_MAP)) {
+    if (msg[key]) return type
+  }
+  return null
+}
+
+function getMimeFromMessage(msg: Record<string, unknown>, mediaType: MediaType): string {
+  for (const key of Object.keys(MEDIA_TYPE_MAP)) {
+    const m = msg[key] as Record<string, unknown> | undefined
+    if (m && typeof m.mimetype === 'string') return m.mimetype
+  }
+  return MIME_MAP[mediaType]
+}
+
+function buildDataUrl(base64: string, mimeType: string): string {
+  const clean = base64.replace(/^data:[^;]+;base64,/, '')
+  return `data:${mimeType};base64,${clean}`
 }
 
 export async function POST(req: NextRequest) {
@@ -36,21 +80,31 @@ export async function POST(req: NextRequest) {
       }
 
       const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '')
+      const goMsg = body.data?.Message as Record<string, unknown> | undefined
+      const mediaType = goMsg ? detectMediaType(goMsg) : null
+
       const messageText: string =
-        body.data?.Message?.conversation ||
-        body.data?.Message?.extendedTextMessage?.text ||
-        body.data?.Message?.imageMessage?.caption ||
-        body.data?.Message?.videoMessage?.caption ||
-        MEDIA_LABELS[info.Type] ||
+        goMsg?.conversation as string ||
+        (goMsg?.extendedTextMessage as Record<string, string> | undefined)?.text ||
+        (goMsg?.imageMessage as Record<string, string> | undefined)?.caption ||
+        (goMsg?.videoMessage as Record<string, string> | undefined)?.caption ||
+        (mediaType ? MEDIA_LABELS[mediaType] : null) ||
         '[media]'
+
+      const rawBase64: string | null = body.data?.Base64 || body.Base64 || null
+      let mediaUrl: string | null = null
+      if (rawBase64 && mediaType) {
+        const mime = goMsg ? getMimeFromMessage(goMsg, mediaType) : MIME_MAP[mediaType]
+        mediaUrl = buildDataUrl(rawBase64, mime)
+      }
 
       const wamid: string | null = info.ID || null
       const isFromMe: boolean = info.IsFromMe === true
 
       if (isFromMe) {
-        await saveOutbound(cleanPhone, messageText, wamid)
+        await saveOutbound(cleanPhone, messageText, wamid, mediaType, mediaUrl)
       } else {
-        await upsertContactAndMessage(cleanPhone, messageText, wamid)
+        await upsertContactAndMessage(cleanPhone, messageText, wamid, mediaType, mediaUrl)
       }
       return NextResponse.json({ ok: true })
     }
@@ -71,20 +125,30 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '')
+    const nodeMsg = (message?.message || {}) as Record<string, unknown>
+    const mediaType = detectMediaType(nodeMsg)
+
     const messageText: string =
-      message?.message?.conversation ||
-      message?.message?.extendedTextMessage?.text ||
-      message?.message?.audioMessage ? '🎵 Audio' :
-      message?.message?.imageMessage ? '📷 Imagen' :
-      message?.message?.videoMessage ? '🎥 Video' :
-      message?.message?.documentMessage ? '📄 Documento' :
+      nodeMsg.conversation as string ||
+      (nodeMsg.extendedTextMessage as Record<string, string> | undefined)?.text ||
+      (nodeMsg.imageMessage as Record<string, string> | undefined)?.caption ||
+      (nodeMsg.videoMessage as Record<string, string> | undefined)?.caption ||
+      (mediaType ? MEDIA_LABELS[mediaType] : null) ||
       '[media]'
+
+    const rawBase64: string | null = message?.base64 || data?.base64 || body?.base64 || null
+    let mediaUrl: string | null = null
+    if (rawBase64 && mediaType) {
+      const mime = getMimeFromMessage(nodeMsg, mediaType)
+      mediaUrl = buildDataUrl(rawBase64, mime)
+    }
+
     const wamid: string | null = message?.key?.id || null
 
     if (fromMe) {
-      await saveOutbound(cleanPhone, messageText, wamid)
+      await saveOutbound(cleanPhone, messageText, wamid, mediaType, mediaUrl)
     } else {
-      await upsertContactAndMessage(cleanPhone, messageText, wamid)
+      await upsertContactAndMessage(cleanPhone, messageText, wamid, mediaType, mediaUrl)
     }
     return NextResponse.json({ ok: true })
 
@@ -94,9 +158,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Guarda mensaje inbound + crea/actualiza contacto
-async function upsertContactAndMessage(phone: string, messageText: string, wamid: string | null) {
+async function upsertContactAndMessage(
+  phone: string,
+  messageText: string,
+  wamid: string | null,
+  mediaType: MediaType | null,
+  mediaUrl: string | null,
+) {
   const now = new Date().toISOString()
+  const preview = mediaType ? MEDIA_LABELS[mediaType] : messageText.slice(0, 100)
 
   const { data: existing } = await supabase
     .from('contacts')
@@ -110,45 +180,44 @@ async function upsertContactAndMessage(phone: string, messageText: string, wamid
     contactId = existing.id
     await supabase
       .from('contacts')
-      .update({ last_message_at: now, last_message_preview: messageText.slice(0, 100), unread: true })
+      .update({ last_message_at: now, last_message_preview: preview, unread: true })
       .eq('id', existing.id)
   } else {
     const { data: inserted } = await supabase
       .from('contacts')
-      .insert({ phone, status: 'nuevo', first_contact_at: now, last_message_at: now, last_message_preview: messageText.slice(0, 100), unread: true })
+      .insert({ phone, status: 'nuevo', first_contact_at: now, last_message_at: now, last_message_preview: preview, unread: true })
       .select('id')
       .single()
     contactId = inserted?.id
   }
 
   if (contactId) {
-    await insertMessage(contactId, messageText, 'inbound', now, wamid)
+    await insertMessage(contactId, messageText, 'inbound', now, wamid, mediaType, mediaUrl)
   }
 }
 
-// Guarda mensaje outbound (enviado por nosotros desde el teléfono, bot, etc.)
-async function saveOutbound(phone: string, messageText: string, wamid: string | null) {
+async function saveOutbound(
+  phone: string,
+  messageText: string,
+  wamid: string | null,
+  mediaType: MediaType | null,
+  mediaUrl: string | null,
+) {
   if (!phone) return
-
-  const { data: contact } = await supabase
-    .from('contacts')
-    .select('id')
-    .eq('phone', phone)
-    .single()
-
-  if (!contact) return // ignorar outbound a números que no son clientes
-
+  const { data: contact } = await supabase.from('contacts').select('id').eq('phone', phone).single()
+  if (!contact) return
   const now = new Date().toISOString()
-  await insertMessage(contact.id, messageText, 'outbound', now, wamid)
+  await insertMessage(contact.id, messageText, 'outbound', now, wamid, mediaType, mediaUrl)
 }
 
-// Inserta mensaje evitando duplicados por wamid
 async function insertMessage(
   contactId: string,
   body: string,
   direction: 'inbound' | 'outbound',
   timestamp: string,
   wamid: string | null,
+  mediaType: MediaType | null,
+  mediaUrl: string | null,
 ) {
   const { error } = await supabase.from('messages').insert({
     contact_id: contactId,
@@ -156,8 +225,9 @@ async function insertMessage(
     direction,
     timestamp,
     wamid,
+    media_type: mediaType,
+    media_url: mediaUrl,
   })
-  // 23505 = unique_violation — el mensaje ya fue guardado (duplicado por wamid)
   if (error && error.code !== '23505') {
     console.error('[insertMessage]', error)
   }

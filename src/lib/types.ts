@@ -33,6 +33,8 @@ export interface Message {
   direction: 'inbound' | 'outbound'
   timestamp: string
   wamid?: string | null
+  media_type?: 'image' | 'audio' | 'video' | 'document' | 'sticker' | null
+  media_url?: string | null
 }
 
 export interface Settings {
