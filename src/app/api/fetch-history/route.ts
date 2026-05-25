@@ -96,8 +96,9 @@ export async function POST(req: NextRequest) {
       const fromMe = m.key?.fromMe ?? m.Info?.IsFromMe ?? false
       const direction: 'inbound' | 'outbound' = fromMe ? 'outbound' : 'inbound'
 
-      const body = extractBody(m)
-      if (!body) continue
+      const extracted = extractMessage(m)
+      if (!extracted) continue
+      const { body, mediaType } = extracted
 
       const rawTs = m.messageTimestamp || m.Info?.Timestamp
       const timestamp = rawTs
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
         direction,
         timestamp,
         wamid,
+        media_type: mediaType,
       })
 
       if (!error) saved++
@@ -163,30 +165,47 @@ function parseMessages(data: unknown): EvolutionMessage[] | null {
   return null
 }
 
-function extractBody(m: EvolutionMessage): string | null {
+type MediaKind = 'image' | 'audio' | 'video' | 'document' | 'sticker'
+
+const MEDIA_TYPE_MAP: Record<string, MediaKind> = {
+  imageMessage:    'image',
+  ImageMessage:    'image',
+  videoMessage:    'video',
+  VideoMessage:    'video',
+  audioMessage:    'audio',
+  AudioMessage:    'audio',
+  pttMessage:      'audio',
+  PTTMessage:      'audio',
+  documentMessage: 'document',
+  DocumentMessage: 'document',
+  stickerMessage:  'sticker',
+  StickerMessage:  'sticker',
+}
+
+function extractMessage(m: EvolutionMessage): { body: string; mediaType: MediaKind | null } | null {
   // Node.js format
   const msg = m.message
   if (msg) {
-    if (typeof msg.conversation === 'string') return msg.conversation
+    if (typeof msg.conversation === 'string') return { body: msg.conversation, mediaType: null }
     const ext = msg.extendedTextMessage as { text?: string } | undefined
-    if (ext?.text) return ext.text
+    if (ext?.text) return { body: ext.text, mediaType: null }
     const imgCaption = (msg.imageMessage as { caption?: string } | undefined)?.caption
-    if (imgCaption) return imgCaption
+    if (imgCaption) return { body: imgCaption, mediaType: 'image' }
     const vidCaption = (msg.videoMessage as { caption?: string } | undefined)?.caption
-    if (vidCaption) return vidCaption
+    if (vidCaption) return { body: vidCaption, mediaType: 'video' }
     for (const [key, label] of Object.entries(MEDIA_LABELS)) {
-      if (msg[key]) return label
+      if (msg[key]) return { body: label, mediaType: MEDIA_TYPE_MAP[key] ?? null }
     }
   }
 
   // GO format
   const goMsg = m.Message
   if (goMsg) {
-    if (typeof goMsg.conversation === 'string') return goMsg.conversation
+    if (typeof goMsg.conversation === 'string') return { body: goMsg.conversation, mediaType: null }
     const ext = goMsg.extendedTextMessage as { text?: string } | undefined
-    if (ext?.text) return ext.text
+    if (ext?.text) return { body: ext.text, mediaType: null }
     for (const [key, label] of Object.entries(MEDIA_LABELS)) {
-      if (goMsg[key]) return label
+      if (goMsg[key]) return { body: label, mediaType: MEDIA_TYPE_MAP[key] ?? null }
     }
   }
 

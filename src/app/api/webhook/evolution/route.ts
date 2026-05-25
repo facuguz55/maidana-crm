@@ -174,7 +174,7 @@ async function upsertContactAndMessage(
     .eq('phone', phone)
     .single()
 
-  let contactId: string
+  let contactId: string | undefined
 
   if (existing) {
     contactId = existing.id

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Copy, Check, Send, FileText, Calendar, Paperclip, Mic, MicOff, X, Play } from 'lucide-react'
 import { toast } from 'sonner'
@@ -260,7 +260,11 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     await sendMedia('image', imagePreview, mimeType)
   }
 
-  const startRecording = useCallback(async () => {
+  // Usamos ref para que stopRecording siempre capture el contact actual sin closure stale
+  const contactRef = useRef(contact)
+  useEffect(() => { contactRef.current = contact }, [contact])
+
+  async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
@@ -272,9 +276,9 @@ export default function ContactDetailClient({ contact: initialContact, order, in
       setRecordingSeconds(0)
       recordingTimerRef.current = setInterval(() => setRecordingSeconds(s => s + 1), 1000)
     } catch { toast.error('No se pudo acceder al micrófono') }
-  }, [])
+  }
 
-  const stopRecording = useCallback(async () => {
+  async function stopRecording() {
     const recorder = mediaRecorderRef.current
     if (!recorder || recorder.state === 'inactive') return
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
@@ -284,23 +288,27 @@ export default function ContactDetailClient({ contact: initialContact, order, in
     recorder.stream.getTracks().forEach(t => t.stop())
     await new Promise<void>(resolve => { recorder.onstop = () => resolve() })
     const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+    const { id: cId, phone: cPhone } = contactRef.current
     const reader = new FileReader()
     reader.onload = async () => {
       const base64 = reader.result as string
-      await sendMedia('audio', base64, blob.type)
+      setSending(true)
+      try {
+        const res = await fetch('/api/send-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactId: cId, phone: cPhone, mediaType: 'audio', base64, mimeType: blob.type }),
+        })
+        if (!res.ok) { const err = await res.json(); toast.error(err.error || 'Error al enviar audio'); return }
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(), contact_id: cId, body: '🎵 Audio',
+          direction: 'outbound', timestamp: new Date().toISOString(),
+          media_type: 'audio', media_url: base64,
+        }])
+      } catch { toast.error('Error de red al enviar audio') }
+      finally { setSending(false) }
     }
     reader.readAsDataURL(blob)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function handleConfirmPago() {
-    startTransition(async () => {
-      try {
-        await updateContactStatus(contact.id, 'pagado')
-        setContact(prev => ({ ...prev, status: 'pagado' }))
-        setShowPlanilla(true)
-        toast.success('✅ Pago confirmado')
-      } catch { toast.error('Error al confirmar') }
-    })
   }
 
   function copyPlanilla() {

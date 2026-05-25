@@ -140,6 +140,8 @@ export default function DashboardClient({ initialContacts }: Props) {
     let list = contacts.filter(c => {
       if (activeTab === 'all') return true
       if (activeTab === 'agendado') return c.scheduled === true
+      // Contactos con estado legacy 'verificar_pago' se muestran en General
+      if (activeTab === 'nuevo') return c.status === 'nuevo' || c.status === 'verificar_pago'
       return c.status === activeTab
     })
     if (search) {

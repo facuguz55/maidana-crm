@@ -1,7 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { Flame, Snowflake, DollarSign, CheckCircle, Calendar, Trash2, type LucideIcon } from 'lucide-react'
+import { Flame, Snowflake, CheckCircle, Calendar, Trash2, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateContactStatus } from '@/app/actions'
 import { formatPhone, timeAgo } from '@/lib/utils'
