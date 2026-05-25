@@ -173,8 +173,8 @@ export default function DashboardClient({ initialContacts }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
-      <div style={{ padding: '14px 24px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="dashboard-header" style={{ padding: '14px 24px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div className="dashboard-header-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div>
             <h1 style={{ fontSize: '17px', fontWeight: 700, color: '#f8fafc' }}>Contactos</h1>
             <p style={{ fontSize: '12px', color: '#64748b', marginTop: '1px' }}>{contacts.length} en total</p>
@@ -186,10 +186,11 @@ export default function DashboardClient({ initialContacts }: Props) {
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative' }}>
+        <div className="dashboard-search-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
             <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
             <input
+              className="dashboard-search-input"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar número o mensaje..."
@@ -198,7 +199,7 @@ export default function DashboardClient({ initialContacts }: Props) {
           </div>
           <button
             onClick={() => refreshContacts(false)}
-            style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
           >
             <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
@@ -206,7 +207,7 @@ export default function DashboardClient({ initialContacts }: Props) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '2px', padding: '8px 24px', borderBottom: '1px solid #1e2d45', flexShrink: 0 }}>
+      <div className="dashboard-tabs" style={{ display: 'flex', gap: '2px', padding: '8px 24px', borderBottom: '1px solid #1e2d45', flexShrink: 0 }}>
         {TABS.map(tab => {
           const isActive = activeTab === tab.key
           const count = tabCounts.counts[tab.key]
@@ -214,6 +215,7 @@ export default function DashboardClient({ initialContacts }: Props) {
           return (
             <button
               key={tab.key}
+              className="dashboard-tab-btn"
               onClick={() => setActiveTab(tab.key)}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '7px', fontSize: '13px', fontWeight: isActive ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', background: isActive ? 'rgba(249,115,22,0.12)' : 'transparent', border: isActive ? '1px solid rgba(249,115,22,0.35)' : '1px solid transparent', color: isActive ? '#f97316' : '#64748b' }}
             >

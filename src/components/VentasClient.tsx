@@ -96,34 +96,35 @@ export default function VentasClient({ initialOrders }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Top bar */}
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+      <div className="ventas-header" style={{ padding: '14px 20px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
           <h1 style={{ fontSize: '17px', fontWeight: 700, color: '#f8fafc' }}>Ventas</h1>
           <p style={{ fontSize: '12px', color: '#64748b', marginTop: '1px' }}>
             {filtered.length} órdenes · {totalUnidades} unidades
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative' }}>
+        <div className="ventas-search-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
             <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
             <input
+              className="ventas-search-input"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar..."
               style={{ paddingLeft: '32px', paddingRight: '12px', paddingTop: '7px', paddingBottom: '7px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none', width: '220px' }}
             />
           </div>
-          <button onClick={handleSyncNow} disabled={syncing} title="Sincronizar Sheets" style={{ padding: '7px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}>
+          <button onClick={handleSyncNow} disabled={syncing} title="Sincronizar Sheets" style={{ padding: '7px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
             <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
           </button>
-          <button onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', fontSize: '12px' }}>
+          <button onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}>
             <Download size={13} /> CSV
           </button>
         </div>
       </div>
 
-      {/* Tabla */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      {/* Tabla — desktop */}
+      <div className="ventas-desktop-table" style={{ flex: 1, overflow: 'auto' }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
             <Package size={28} color="#334155" />
@@ -178,6 +179,52 @@ export default function VentasClient({ initialOrders }: Props) {
           </table>
         )}
       </div>
+
+      {/* Cards — mobile */}
+      <div className="ventas-mobile-cards" style={{ flex: 1, overflowY: 'auto' }}>
+        {filtered.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', gap: '12px' }}>
+            <Package size={28} color="#334155" />
+            <p style={{ color: '#64748b', fontSize: '14px' }}>
+              {search ? `Sin resultados para "${search}"` : 'Todavía no hay órdenes'}
+            </p>
+          </div>
+        ) : (
+          filtered.map(order => (
+            <div key={order.id} style={{ padding: '14px 16px', borderBottom: '1px solid #1a2535', background: 'transparent' }}>
+              {/* Fila 1: nombre + fecha */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>{order.name}</span>
+                <span style={{ fontSize: '11px', color: '#475569' }}>
+                  {new Date(order.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                </span>
+              </div>
+              {/* Fila 2: teléfono + cantidad */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontSize: '12px', color: '#64748b', fontFamily: 'monospace' }}>{order.phone}</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#f97316' }}>× {order.quantity}</span>
+              </div>
+              {/* Fila 3: qué compró */}
+              {order.product && (
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                  {order.product}
+                </div>
+              )}
+              {/* Fila 4: dirección */}
+              <div style={{ fontSize: '12px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                📍 {order.address}{order.postal_code ? ` (${order.postal_code})` : ''}
+              </div>
+              {/* Fila 5: datos extra si hay */}
+              {order.extra_data && (
+                <div style={{ fontSize: '11px', color: '#334155', marginTop: '4px', fontStyle: 'italic' }}>
+                  {order.extra_data}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )

@@ -43,6 +43,8 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   const [isRecording, setIsRecording] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  // Panel activo en mobile: 'chat' por defecto (lo más usado en celular)
+  const [activePanel, setActivePanel] = useState<'info' | 'chat'>('chat')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pendingOutbound = useRef<Set<string>>(new Set())
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -329,30 +331,31 @@ export default function ContactDetailClient({ contact: initialContact, order, in
   const statusColor = STATUS_DOT[contact.status]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0f172a', flexDirection: 'column' }}>
+    <div className="contact-detail-root" style={{ display: 'flex', height: '100vh', background: '#0f172a', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{
+      <div className="contact-header" style={{
         padding: '16px 24px', borderBottom: '1px solid #1e2d45', background: '#0d1526',
         display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0,
       }}>
         <button
           onClick={() => router.back()}
-          style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}
+          style={{ padding: '8px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
         >
           <ArrowLeft size={16} />
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+        <div className="contact-header-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: statusColor, flexShrink: 0, display: 'inline-block' }} />
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>{displayName}</h1>
-          <span style={{ fontSize: '13px', color: '#64748b' }}>{formatPhone(contact.phone)}</span>
-          <span suppressHydrationWarning style={{ fontSize: '12px', color: '#475569' }}>· {timeAgo(contact.last_message_at)}</span>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</h1>
+          <span style={{ fontSize: '13px', color: '#64748b', flexShrink: 0 }}>{formatPhone(contact.phone)}</span>
+          <span suppressHydrationWarning style={{ fontSize: '12px', color: '#475569', flexShrink: 0 }}>· {timeAgo(contact.last_message_at)}</span>
           {scheduled && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: '999px', fontSize: '11px', color: '#818cf8', fontWeight: 600 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: '999px', fontSize: '11px', color: '#818cf8', fontWeight: 600, flexShrink: 0 }}>
               <Calendar size={10} /> Agendado
             </span>
           )}
         </div>
         <button
+          className="contact-schedule-btn"
           onClick={handleToggleScheduled}
           disabled={isPending}
           style={{
@@ -364,15 +367,35 @@ export default function ContactDetailClient({ contact: initialContact, order, in
           }}
         >
           <Calendar size={14} />
-          {scheduled ? 'Agendado ✓' : 'Agendar contacto'}
+          <span className="contact-schedule-text">{scheduled ? 'Agendado ✓' : 'Agendar contacto'}</span>
         </button>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      {/* Panel switcher — solo visible en mobile, oculto en desktop via CSS */}
+      <div className="panel-switcher">
+        <button
+          className="panel-switcher-btn"
+          data-active={String(activePanel === 'info')}
+          onClick={() => setActivePanel('info')}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+          Info
+        </button>
+        <button
+          className="panel-switcher-btn"
+          data-active={String(activePanel === 'chat')}
+          onClick={() => setActivePanel('chat')}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Chat
+        </button>
+      </div>
+
+      {/* Two-column layout (desktop) / panel único (mobile) */}
+      <div className="contact-body" data-panel={activePanel} style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* Left panel — info */}
-        <div style={{ width: '360px', flexShrink: 0, borderRight: '1px solid #1e2d45', overflowY: 'auto', padding: '20px' }}>
+        <div className="contact-left" style={{ width: '360px', flexShrink: 0, borderRight: '1px solid #1e2d45', overflowY: 'auto', padding: '20px' }}>
 
           {/* Status */}
           <Section title="Estado">
@@ -489,7 +512,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
         </div>
 
         {/* Right panel — chat */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div className="contact-right" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e2d45', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
             Conversación
             {syncing && <span style={{ fontSize: '10px', color: '#475569', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>sincronizando...</span>}

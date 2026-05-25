@@ -33,6 +33,10 @@ html, body {
 .card-mobile { display: none; }
 .card-desktop { display: flex; flex-direction: column; gap: 10px; }
 
+/* Elementos mobile-only: ocultos por defecto en desktop */
+.panel-switcher { display: none; }
+.ventas-mobile-cards { display: none; }
+
 @media (max-width: 768px) {
   /* Sidebar oculta */
   .app-sidebar { display: none !important; }
@@ -72,10 +76,6 @@ html, body {
     background: #0f172a !important;
   }
   .contact-card:hover { background: #1a2539 !important; }
-  /* No leído en mobile: fondo azul vivo */
-  .contact-card[style*="0d1e36"] {
-    background: #0b1a2e !important;
-  }
 
   /* Grid → lista vertical */
   div[style*="grid-template-columns"] {
@@ -88,8 +88,149 @@ html, body {
   /* Tablas: scroll horizontal */
   table { min-width: 520px; }
 
-  /* Header más compacto */
-  h1[style*="18px"] { font-size: 16px !important; }
+  /* ======================================
+     DASHBOARD — header + tabs + search
+     ====================================== */
+  .dashboard-header {
+    flex-wrap: wrap !important;
+    padding: 10px 14px !important;
+    gap: 6px 10px !important;
+    align-items: flex-start !important;
+  }
+  .dashboard-header-left {
+    flex: 1 1 auto !important;
+    min-width: 0;
+  }
+  .dashboard-search-row {
+    width: 100% !important;
+    order: 3;
+  }
+  .dashboard-search-row > div:first-child {
+    flex: 1 !important;
+  }
+  .dashboard-search-input {
+    width: 100% !important;
+  }
+  .dashboard-tabs {
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    padding: 6px 14px !important;
+    gap: 4px !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dashboard-tabs::-webkit-scrollbar { display: none; }
+  .dashboard-tab-btn { flex-shrink: 0 !important; }
+
+  /* ======================================
+     CONTACT DETAIL — panel switcher
+     ====================================== */
+
+  /* Fix altura para no quedar tapado por la nav inferior */
+  .contact-detail-root {
+    height: calc(100vh - 64px) !important;
+  }
+
+  /* Panel switcher — aparece en mobile */
+  .panel-switcher {
+    display: flex !important;
+    border-bottom: 1px solid #1e2d45;
+    background: #0d1526;
+    flex-shrink: 0;
+  }
+  .panel-switcher-btn {
+    flex: 1;
+    padding: 11px 0;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    letter-spacing: 0.01em;
+  }
+  .panel-switcher-btn[data-active="true"] {
+    color: #f97316;
+    border-bottom-color: #f97316;
+    background: rgba(249, 115, 22, 0.05);
+    font-weight: 600;
+  }
+
+  /* Cuerpo: columna única + ocultar panel inactivo */
+  .contact-body {
+    flex-direction: column !important;
+  }
+  .contact-body[data-panel="chat"] .contact-left  { display: none !important; }
+  .contact-body[data-panel="info"] .contact-right { display: none !important; }
+
+  /* Panel izquierdo (info): full width */
+  .contact-left {
+    width: 100% !important;
+    border-right: none !important;
+    padding: 16px !important;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  /* Panel derecho (chat): ocupa todo */
+  .contact-right {
+    flex: 1 !important;
+    min-height: 0;
+  }
+
+  /* Header contacto: más compacto */
+  .contact-header {
+    padding: 10px 14px !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+  }
+  .contact-header-info {
+    flex-wrap: wrap !important;
+    gap: 3px 8px !important;
+    flex: 1 !important;
+    min-width: 0;
+  }
+  /* Botón Agendar: solo ícono en mobile */
+  .contact-schedule-text { display: none !important; }
+  .contact-schedule-btn {
+    padding: 8px 10px !important;
+    gap: 0 !important;
+  }
+
+  /* ======================================
+     VENTAS — header + tabla → cards
+     ====================================== */
+  .ventas-header {
+    flex-wrap: wrap !important;
+    padding: 10px 14px !important;
+    gap: 8px !important;
+    align-items: flex-start !important;
+  }
+  .ventas-header h1 { font-size: 16px !important; }
+  .ventas-search-row {
+    width: 100% !important;
+  }
+  .ventas-search-row > div:first-child {
+    flex: 1 !important;
+  }
+  .ventas-search-input { width: 100% !important; }
+
+  /* En mobile: ocultar tabla, mostrar cards */
+  .ventas-desktop-table { display: none !important; }
+  .ventas-mobile-cards  { display: flex !important; flex-direction: column; gap: 0; }
+
+  /* ======================================
+     SETTINGS — padding mobile
+     ====================================== */
+  .settings-header  { padding: 14px 16px !important; }
+  .settings-content { padding: 14px 16px !important; max-width: 100% !important; }
 }
 
 /* Scrollbar */

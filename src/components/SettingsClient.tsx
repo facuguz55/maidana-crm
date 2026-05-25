@@ -58,12 +58,12 @@ export default function SettingsClient({ settings }: Props) {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto' }}>
-      <div style={{ padding: '24px 32px', borderBottom: '1px solid #1e2d45' }}>
+      <div className="settings-header" style={{ padding: '24px 32px', borderBottom: '1px solid #1e2d45' }}>
         <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#f8fafc' }}>Configuración</h1>
         <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>Integraciones y parámetros del sistema</p>
       </div>
 
-      <div style={{ padding: '24px 32px', maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="settings-content" style={{ padding: '24px 32px', maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
         <Card icon={Zap} iconColor="#f97316" title="Evolution API" subtitle="Configuración de WhatsApp">
           <Field label="URL de la API" value={form.evolution_api_url} onChange={v => update('evolution_api_url', v)} placeholder="https://devgo.santafeia.shop" />
