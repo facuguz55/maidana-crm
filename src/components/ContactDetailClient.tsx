@@ -358,10 +358,11 @@ export default function ContactDetailClient({ contact: initialContact, order, in
           width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0,
           background: AVATAR_BG[contact.status],
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.88)',
+          fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.88)',
+          fontFamily: 'ui-monospace, monospace', letterSpacing: '0.02em',
           userSelect: 'none',
         }}>
-          {(contact.name?.charAt(0) || contact.phone.charAt(0)).toUpperCase()}
+          {contact.phone.replace(/\D/g, '').slice(-2) || '??'}
         </div>
 
         {/* Info: nombre arriba, teléfono+tiempo abajo */}

@@ -57,8 +57,9 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
   const phone = formatPhone(contact.phone)
   const displayName = contact.name || phone
 
-  // Letra del avatar: primera letra del nombre o del teléfono
-  const avatarLetter = (contact.name?.charAt(0) || contact.phone.replace(/\D/g, '').charAt(0) || '?').toUpperCase()
+  // Avatar: últimos 2 dígitos del teléfono
+  const digits = contact.phone.replace(/\D/g, '')
+  const avatarLetter = digits.slice(-2) || '??'
 
   function handleClick() {
     if (unread) onMarkRead?.(contact.id)

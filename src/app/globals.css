@@ -37,10 +37,11 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.85);
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
+  font-family: ui-monospace, monospace;
   user-select: none;
 }
 
@@ -266,7 +267,7 @@ html, body {
   .row-actions { display: none !important; }
 
   /* Avatar más grande en mobile */
-  .cr-avatar { width: 50px; height: 50px; font-size: 20px; }
+  .cr-avatar { width: 50px; height: 50px; font-size: 14px; }
 
   /* Badge más visible */
   .cr-unread-badge {
