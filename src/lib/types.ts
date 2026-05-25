@@ -24,6 +24,10 @@ export interface Order {
   status: OrderStatus
   form_timestamp: string | null
   created_at: string
+  email?: string | null
+  product?: string | null
+  postal_code?: string | null
+  extra_data?: string | null
 }
 
 export interface Message {

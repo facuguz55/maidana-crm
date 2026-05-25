@@ -40,8 +40,11 @@ export async function POST() {
     let synced = 0
 
     for (const row of dataRows) {
-      // Columnas: timestamp, email, nombre, telefono, email2, producto, cantidad, direccion, cp, extra
-      const [timestamp, , name, phoneRaw, , , quantityRaw, address] = row
+      // Columnas del formulario:
+      // [0] Marca temporal  [1] Email form  [2] Nombre y Apellido  [3] Telefono
+      // [4] Correo Electrónico  [5] Que compraste  [6] Cantidad  [7] Dirección
+      // [8] Codigo Postal  [9] Datos extra
+      const [timestamp, , name, phoneRaw, email, product, quantityRaw, address, postalCode, extraData] = row
       if (!timestamp || !name || !phoneRaw) continue
 
       const phone = normalizePhone(phoneRaw)
@@ -68,6 +71,10 @@ export async function POST() {
             phone,
             status: 'pendiente',
             form_timestamp: timestamp,
+            email: email || null,
+            product: product || null,
+            postal_code: postalCode || null,
+            extra_data: extraData || null,
           },
           { onConflict: 'form_timestamp', ignoreDuplicates: true }
         )
