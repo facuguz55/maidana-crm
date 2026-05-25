@@ -78,25 +78,26 @@ async function uploadBase64ToStorage(
   }
 }
 
-// Llama a /message/downloadimage para obtener base64 de la imagen
+// Llama a /message/downloadimage pasando el objeto message completo (DownloadMediaStruct)
 async function downloadMediaFromEvolution(
   apiBase: string,
   apiKey: string,
-  wamid: string,
-  remoteJid: string,
+  message: Record<string, unknown>,
 ): Promise<string | null> {
   try {
     const res = await fetch(`${apiBase}/message/downloadimage`, {
       method: 'POST',
       headers: { 'apikey': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messageId: wamid, remoteJid }),
+      body: JSON.stringify({ message }),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.error('[webhook] downloadimage status:', res.status, await res.text().catch(() => ''))
+      return null
+    }
     const data = await res.json()
-    // La respuesta puede ser { base64: "..." } o directamente un string
-    const b64 = data?.base64 || data?.data || (typeof data === 'string' ? data : null)
+    const b64 = data?.base64 || data?.Base64 || data?.data || (typeof data === 'string' ? data : null)
     return b64 || null
-  } catch { return null }
+  } catch (e) { console.error('[webhook] downloadimage error:', e); return null }
 }
 
 export async function POST(req: NextRequest) {
@@ -138,21 +139,22 @@ export async function POST(req: NextRequest) {
       // Resolver media URL
       let mediaUrl: string | null = null
       if (mediaType) {
-        const rawB64: string | null = body.data?.Base64 || body.Base64 || null
+        const rawB64: string | null = body.data?.Base64 || body.Base64 || body.data?.Data || null
         const mime = getMime(goMsg, mediaType)
+        console.log(`[webhook GO] mediaType=${mediaType} wamid=${wamid} hasB64=${!!rawB64} mime=${mime}`)
 
         if (rawB64) {
-          // Subir base64 del payload a Storage
           const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
           if (contactForUpload) {
             mediaUrl = await uploadBase64ToStorage(rawB64, mime, contactForUpload)
           }
-        } else if (wamid && (mediaType === 'image' || mediaType === 'video' || mediaType === 'document')) {
-          // Descargar imagen desde Evolution API
+        } else if (wamid) {
+          // Intentar descarga para todos los tipos de media (image, audio, video, document)
           const { data: settings } = await supabase.from('settings').select('evolution_api_url, evolution_api_key').eq('id', 1).single()
           if (settings?.evolution_api_url) {
             const apiBase = settings.evolution_api_url.replace(/\/$/, '')
-            const b64 = await downloadMediaFromEvolution(apiBase, settings.evolution_api_key, wamid, remoteJid)
+            const b64 = await downloadMediaFromEvolution(apiBase, settings.evolution_api_key, goMsg)
+            console.log(`[webhook GO] download result for ${mediaType}: ${b64 ? 'ok' : 'null'}`)
             if (b64) {
               const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
               if (contactForUpload) {
@@ -211,11 +213,11 @@ export async function POST(req: NextRequest) {
         if (contactForUpload) {
           mediaUrl = await uploadBase64ToStorage(rawB64, mime, contactForUpload)
         }
-      } else if (wamid && (mediaType === 'image' || mediaType === 'video' || mediaType === 'document')) {
+      } else if (wamid) {
         const { data: settings } = await supabase.from('settings').select('evolution_api_url, evolution_api_key').eq('id', 1).single()
         if (settings?.evolution_api_url) {
           const apiBase = settings.evolution_api_url.replace(/\/$/, '')
-          const b64 = await downloadMediaFromEvolution(apiBase, settings.evolution_api_key, wamid, remoteJid)
+          const b64 = await downloadMediaFromEvolution(apiBase, settings.evolution_api_key, nodeMsg)
           if (b64) {
             const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, fromMe)
             if (contactForUpload) {
