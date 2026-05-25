@@ -34,7 +34,7 @@ async function uploadToStorage(
   contactId: string,
   mediaType: MediaType,
 ): Promise<string> {
-  const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '')
+  const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64
   const buffer = Buffer.from(cleanBase64, 'base64')
   const ext = extFromMime(mimeType)
   const path = `${contactId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`

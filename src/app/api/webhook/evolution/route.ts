@@ -59,7 +59,7 @@ async function uploadBase64ToStorage(
   contactId: string,
 ): Promise<string | null> {
   try {
-    const clean = base64.replace(/^data:[^;]+;base64,/, '')
+    const clean = base64.includes(',') ? base64.split(',')[1] : base64
     const buffer = Buffer.from(clean, 'base64')
     const ext = extFromMime(mimeType)
     const path = `${contactId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
