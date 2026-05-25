@@ -80,13 +80,9 @@ export async function POST(req: NextRequest) {
     const base = settings.evolution_api_url.replace(/\/$/, '')
     const ext = extFromMime(mimeType || 'application/octet-stream')
 
-    // Evolution GO: /send/media con mediatype
-    // Para audio PTT usamos "ptt", para el resto el tipo directo
-    const evolutionMediaType = mediaType === 'audio' ? 'ptt' : mediaType
-
     const evoBody = {
       number: phone,
-      type: evolutionMediaType,
+      type: mediaType,
       url: publicUrl,
       caption: caption || '',
       fileName: fileName || `${mediaType}-${Date.now()}.${ext}`,
