@@ -28,6 +28,32 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ===== AVATAR — contact rows & detail header ===== */
+.cr-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+
+/* Badge de no leído — círculo naranja */
+.cr-unread-badge {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+  flex-shrink: 0;
+}
+
 /* ===== MOBILE ===== */
 .mobile-nav { display: none; }
 .card-mobile { display: none; }
@@ -231,6 +257,88 @@ html, body {
      ====================================== */
   .settings-header  { padding: 14px 16px !important; }
   .settings-content { padding: 14px 16px !important; max-width: 100% !important; }
+
+  /* ======================================
+     WHATSAPP-LIKE — contact rows
+     ====================================== */
+
+  /* Ocultar action buttons — en mobile se accede al contacto y se cambia estado desde ahí */
+  .row-actions { display: none !important; }
+
+  /* Avatar más grande en mobile */
+  .cr-avatar { width: 50px; height: 50px; font-size: 20px; }
+
+  /* Badge más visible */
+  .cr-unread-badge {
+    width: 12px;
+    height: 12px;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+  }
+
+  /* ======================================
+     WHATSAPP-LIKE — contact detail header
+     ====================================== */
+
+  /* Header compacto: info en columna (nombre arriba, teléfono abajo) */
+  .contact-header-info {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0 !important;
+  }
+  .contact-header-meta {
+    gap: 4px !important;
+  }
+
+  /* ======================================
+     WHATSAPP-LIKE — chat input
+     ====================================== */
+
+  /* Textarea pill-shaped */
+  .chat-textarea {
+    border-radius: 22px !important;
+    padding: 10px 16px !important;
+    font-size: 15px !important;
+    rows: 1 !important;
+    max-height: 100px !important;
+  }
+
+  /* Botones de acción (attach, mic) — redondos y más grandes */
+  .chat-action-btn {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Botón enviar — redondo y prominente */
+  .chat-send-btn {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4) !important;
+  }
+
+  /* Panel switcher: aspecto más nativo */
+  .panel-switcher {
+    background: #0a1220 !important;
+  }
+  .panel-switcher-btn {
+    font-size: 14px !important;
+    padding: 13px 0 !important;
+    gap: 7px !important;
+  }
+
+  /* Nav inferior: íconos un poco más grandes */
+  .mobile-nav-item svg {
+    width: 24px;
+    height: 24px;
+  }
+  .mobile-nav-item span {
+    font-size: 10px;
+    letter-spacing: 0.01em;
+    margin-top: 3px;
+  }
 }
 
 /* Scrollbar */

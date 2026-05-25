@@ -29,8 +29,13 @@ const STATUS_ACTIONS: Record<ContactStatus, Action[]> = {
   pagado: [],
 }
 
-const STATUS_DOT: Record<ContactStatus, string> = {
-  nuevo: '#3b82f6', frio: '#475569', caliente: '#f97316', verificar_pago: '#f59e0b', pagado: '#22c55e',
+// Color de fondo del avatar según estado del contacto
+const AVATAR_BG: Record<ContactStatus, string> = {
+  nuevo:          '#1e3a6e',
+  caliente:       '#7c2d00',
+  frio:           '#1e293b',
+  pagado:         '#14532d',
+  verificar_pago: '#451a03',
 }
 
 function formatPreview(p: string | null | undefined): string {
@@ -52,6 +57,9 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
   const phone = formatPhone(contact.phone)
   const displayName = contact.name || phone
 
+  // Letra del avatar: primera letra del nombre o del teléfono
+  const avatarLetter = (contact.name?.charAt(0) || contact.phone.replace(/\D/g, '').charAt(0) || '?').toUpperCase()
+
   function handleClick() {
     if (unread) onMarkRead?.(contact.id)
     router.push(`/contact/${contact.id}`)
@@ -71,8 +79,8 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
     <div
       onClick={handleClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: '14px',
-        padding: '10px 24px',
+        display: 'flex', alignItems: 'center', gap: '12px',
+        padding: '10px 16px',
         background: unread ? '#0e1e33' : 'transparent',
         borderBottom: '1px solid #1a2a3e',
         cursor: 'pointer',
@@ -82,38 +90,59 @@ export default function ContactRow({ contact, onMarkRead }: Props) {
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? '#132236' : '#141f2e' }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = unread ? '#0e1e33' : 'transparent' }}
     >
-      {/* Indicador de estado izquierda */}
-      <div style={{ width: '10px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-        {unread
-          ? <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f97316', boxShadow: '0 0 5px rgba(249,115,22,0.6)' }} />
-          : <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: STATUS_DOT[contact.status], opacity: 0.5 }} />
-        }
+      {/* Avatar circular con inicial */}
+      <div className="cr-avatar" style={{ background: AVATAR_BG[contact.status] }}>
+        {avatarLetter}
       </div>
 
-      {/* Info principal */}
+      {/* Info principal — 2 líneas */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '3px' }}>
-          <span style={{ fontSize: '14px', fontWeight: unread ? 700 : 400, color: unread ? '#fff' : '#94a3b8', letterSpacing: '0.01em', flexShrink: 0 }}>
-            {displayName}
-          </span>
-          {contact.name && (
-            <span style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace' }}>{phone}</span>
-          )}
-          {isScheduled && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#818cf8', fontWeight: 600, fontFamily: 'inherit' }}>
-              <Calendar size={10} /> Agendado
+        {/* Línea 1: nombre + tiempo */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
+            <span style={{
+              fontSize: '14px', fontWeight: unread ? 700 : 500,
+              color: unread ? '#fff' : '#e2e8f0',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {displayName}
             </span>
-          )}
-          <span suppressHydrationWarning style={{ fontSize: '12px', color: unread ? '#f97316' : '#475569', fontWeight: unread ? 600 : 400, flexShrink: 0 }}>
+            {contact.name && (
+              <span style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace', flexShrink: 0 }}>{phone}</span>
+            )}
+            {isScheduled && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px', color: '#818cf8', fontWeight: 600, flexShrink: 0 }}>
+                <Calendar size={10} /> Agendado
+              </span>
+            )}
+          </div>
+          <span suppressHydrationWarning style={{
+            fontSize: '12px',
+            color: unread ? '#f97316' : '#475569',
+            fontWeight: unread ? 600 : 400,
+            flexShrink: 0, marginLeft: '8px',
+          }}>
             {timeAgo(contact.last_message_at)}
           </span>
         </div>
-        <p style={{ fontSize: '12px', color: unread ? '#cbd5e1' : '#475569', fontWeight: unread ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
-          {preview}
-        </p>
+
+        {/* Línea 2: preview + badge no leído */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <p style={{
+            fontSize: '13px',
+            color: unread ? '#94a3b8' : '#475569',
+            fontWeight: unread ? 500 : 400,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            margin: 0, flex: 1,
+          }}>
+            {preview}
+          </p>
+          {/* Badge de no leído — visible en mobile y desktop */}
+          {unread && <div className="cr-unread-badge" />}
+        </div>
       </div>
 
-      {/* Acciones rápidas — solo en hover via CSS, siempre visibles en desktop */}
+      {/* Acciones rápidas — solo visibles en desktop, ocultas en mobile via CSS */}
       <div className="row-actions" style={{ display: 'flex', gap: '5px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
         {actions.map(action => {
           const Icon = action.icon

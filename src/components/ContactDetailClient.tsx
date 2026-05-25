@@ -19,6 +19,15 @@ const STATUS_DOT: Record<ContactStatus, string> = {
   nuevo: '#3b82f6', frio: '#64748b', caliente: '#f97316', verificar_pago: '#f59e0b', pagado: '#22c55e',
 }
 
+// Color de fondo del avatar en el header
+const AVATAR_BG: Record<ContactStatus, string> = {
+  nuevo:          '#1e3a6e',
+  caliente:       '#7c2d00',
+  frio:           '#1e293b',
+  pagado:         '#14532d',
+  verificar_pago: '#451a03',
+}
+
 interface Props {
   contact: Contact
   order: Order | null
@@ -343,16 +352,37 @@ export default function ContactDetailClient({ contact: initialContact, order, in
         >
           <ArrowLeft size={16} />
         </button>
+
+        {/* Avatar en el header */}
+        <div style={{
+          width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0,
+          background: AVATAR_BG[contact.status],
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.88)',
+          userSelect: 'none',
+        }}>
+          {(contact.name?.charAt(0) || contact.phone.charAt(0)).toUpperCase()}
+        </div>
+
+        {/* Info: nombre arriba, teléfono+tiempo abajo */}
         <div className="contact-header-info" style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: statusColor, flexShrink: 0, display: 'inline-block' }} />
-          <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</h1>
-          <span style={{ fontSize: '13px', color: '#64748b', flexShrink: 0 }}>{formatPhone(contact.phone)}</span>
-          <span suppressHydrationWarning style={{ fontSize: '12px', color: '#475569', flexShrink: 0 }}>· {timeAgo(contact.last_message_at)}</span>
-          {scheduled && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: '999px', fontSize: '11px', color: '#818cf8', fontWeight: 600, flexShrink: 0 }}>
-              <Calendar size={10} /> Agendado
-            </span>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+            {/* Fila 1: nombre + dot estado + badge agendado */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</h1>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: statusColor, flexShrink: 0, display: 'inline-block' }} />
+              {scheduled && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '1px 7px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: '999px', fontSize: '10px', color: '#818cf8', fontWeight: 600, flexShrink: 0 }}>
+                  <Calendar size={9} /> Agendado
+                </span>
+              )}
+            </div>
+            {/* Fila 2: teléfono · tiempo */}
+            <div className="contact-header-meta" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>{formatPhone(contact.phone)}</span>
+              <span suppressHydrationWarning style={{ fontSize: '11px', color: '#475569' }}>· {timeAgo(contact.last_message_at)}</span>
+            </div>
+          </div>
         </div>
         <button
           className="contact-schedule-btn"
@@ -649,6 +679,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
                 {/* Adjuntar imagen */}
                 <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} />
                 <button
+                  className="chat-action-btn"
                   onClick={() => fileInputRef.current?.click()}
                   title="Adjuntar imagen"
                   style={{ width: '40px', height: '40px', flexShrink: 0, background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '10px', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -658,10 +689,11 @@ export default function ContactDetailClient({ contact: initialContact, order, in
 
                 {/* Textarea */}
                 <textarea
+                  className="chat-textarea"
                   value={messageText}
                   onChange={e => setMessageText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(messageText) } }}
-                  placeholder="Escribí un mensaje... (Enter para enviar)"
+                  placeholder="Escribí un mensaje..."
                   rows={2}
                   style={{
                     flex: 1, padding: '10px 14px', background: '#1e293b',
@@ -675,6 +707,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
                 {/* Micrófono o enviar */}
                 {messageText.trim() ? (
                   <button
+                    className="chat-send-btn"
                     onClick={() => sendMessage(messageText)}
                     disabled={sending}
                     style={{ width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0, background: '#f97316', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -683,6 +716,7 @@ export default function ContactDetailClient({ contact: initialContact, order, in
                   </button>
                 ) : (
                   <button
+                    className="chat-action-btn"
                     onClick={startRecording}
                     title="Grabar audio"
                     style={{ width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0, background: '#1e293b', border: '1px solid #1e2d45', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
