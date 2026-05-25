@@ -525,7 +525,20 @@ export default function ContactDetailClient({ contact: initialContact, order, in
                     </div>
                   ) : msg.media_type === 'audio' && msg.media_url ? (
                     <div style={{ padding: '4px 0' }}>
-                      <audio controls src={msg.media_url} style={{ height: '36px', maxWidth: '260px', filter: msg.direction === 'outbound' ? 'invert(1) hue-rotate(180deg)' : 'none' }} />
+                      <audio
+                        controls
+                        src={msg.media_url}
+                        preload="metadata"
+                        onLoadedMetadata={(e) => {
+                          const a = e.currentTarget
+                          if (!isFinite(a.duration) || a.duration === 0) {
+                            a.currentTime = 1e101
+                            const reset = () => { a.currentTime = 0; a.removeEventListener('timeupdate', reset) }
+                            a.addEventListener('timeupdate', reset)
+                          }
+                        }}
+                        style={{ height: '36px', maxWidth: '260px', filter: msg.direction === 'outbound' ? 'invert(1) hue-rotate(180deg)' : 'none' }}
+                      />
                       <p style={{ fontSize: '10px', opacity: 0.65, marginTop: '4px', textAlign: 'right' }}>{formatMsgTime(msg.timestamp)}</p>
                     </div>
                   ) : msg.media_type === 'audio' ? (
