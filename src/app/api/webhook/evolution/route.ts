@@ -95,7 +95,9 @@ async function downloadMediaFromEvolution(
       return null
     }
     const data = await res.json()
-    const b64 = data?.base64 || data?.Base64 || data?.data || (typeof data === 'string' ? data : null)
+    // Respuesta Evolution GO: { message: "success", data: { base64: "..." } }
+    const b64 = data?.data?.base64 || data?.base64 || data?.Base64 || (typeof data === 'string' ? data : null)
+    console.log('[webhook] downloadimage keys:', Object.keys(data || {}))
     return b64 || null
   } catch (e) { console.error('[webhook] downloadimage error:', e); return null }
 }
