@@ -143,7 +143,9 @@ export async function POST(req: NextRequest) {
       if (mediaType) {
         const rawB64: string | null = body.data?.Base64 || body.Base64 || body.data?.Data || null
         const mime = getMime(goMsg, mediaType)
-        console.log(`[WH1] tp=${mediaType} b64=${!!rawB64} wamid=${!!wamid} iK=${Object.keys(info).join('|')}`)
+        console.log(`[WH1] tp=${mediaType} b64=${!!rawB64} wamid=${!!wamid}`)
+        // Guardar goMsg en settings para debug (campo debug_payload)
+        await supabase.from('settings').update({ debug_payload: JSON.stringify(goMsg).slice(0, 3000) }).eq('id', 1)
 
         if (rawB64) {
           const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
