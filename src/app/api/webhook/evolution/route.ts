@@ -143,10 +143,9 @@ export async function POST(req: NextRequest) {
       if (mediaType) {
         const rawB64: string | null = body.data?.Base64 || body.Base64 || body.data?.Data || null
         const mime = getMime(goMsg, mediaType)
-        // Log payload keys para diagnostico
-        const dataKeys = Object.keys(body.data || {})
-        const msgKeys = Object.keys(goMsg)
-        console.log(`[webhook GO] mediaType=${mediaType} hasB64=${!!rawB64} dataKeys=${dataKeys.join(',')} msgKeys=${msgKeys.join(',')}`)
+        console.log(`[WH1] type=${mediaType} b64=${!!rawB64}`)
+        console.log(`[WH2] dataK=${Object.keys(body.data||{}).join('|')}`)
+        console.log(`[WH3] msgK=${Object.keys(goMsg).join('|')}`)
 
         if (rawB64) {
           const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
