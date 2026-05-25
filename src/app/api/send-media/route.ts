@@ -86,13 +86,14 @@ export async function POST(req: NextRequest) {
 
     const evoBody = {
       number: phone,
-      mediatype: evolutionMediaType,
-      url: publicUrl,        // Evolution GO usa "url" (no "mediaUrl")
+      type: evolutionMediaType,
+      url: publicUrl,
       caption: caption || '',
       fileName: fileName || `${mediaType}-${Date.now()}.${ext}`,
       mimetype: mimeType || '',
     }
 
+    console.log('[send-media] evoBody:', JSON.stringify(evoBody))
     const evoRes = await fetch(`${base}/send/media`, {
       method: 'POST',
       headers: {
