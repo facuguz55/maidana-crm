@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
         (mediaType ? MEDIA_LABELS[mediaType] : null) ||
         '[media]'
 
-      const wamid: string | null = info.ID || null
+      const wamid: string | null = info.ID || info.Id || info.MessageId || info.MessageID || null
       const isFromMe: boolean = info.IsFromMe === true
 
       // Resolver media URL
@@ -143,9 +143,7 @@ export async function POST(req: NextRequest) {
       if (mediaType) {
         const rawB64: string | null = body.data?.Base64 || body.Base64 || body.data?.Data || null
         const mime = getMime(goMsg, mediaType)
-        console.log(`[WH1] type=${mediaType} b64=${!!rawB64}`)
-        console.log(`[WH2] dataK=${Object.keys(body.data||{}).join('|')}`)
-        console.log(`[WH3] msgK=${Object.keys(goMsg).join('|')}`)
+        console.log(`[WH1] tp=${mediaType} b64=${!!rawB64} wamid=${!!wamid} iK=${Object.keys(info).join('|')}`)
 
         if (rawB64) {
           const contactForUpload = await getOrCreateContact(cleanPhone, messageText, mediaType, isFromMe)
