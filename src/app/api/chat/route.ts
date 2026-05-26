@@ -123,19 +123,31 @@ async function executeTool(name: string, input: ToolInput): Promise<unknown> {
   }
 
   if (name === 'add_order') {
-    const { data, error } = await supabase
-      .from('orders')
-      .insert({ status: 'pagado', ...input })
-      .select()
-      .single()
-    if (error) return { error: error.message }
-    return { success: true, order: data }
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .insert({ status: 'pagado', ...input })
+        .select()
+      if (error) {
+        const msg = error.message || error.code || JSON.stringify(error)
+        console.error('[add_order] Supabase error:', msg)
+        return { error: `Error al insertar orden: ${msg}` }
+      }
+      if (!data || data.length === 0) {
+        console.error('[add_order] Insert returned no data')
+        return { error: 'El insert no devolvió datos' }
+      }
+      return { success: true, order: data[0] }
+    } catch (e) {
+      console.error('[add_order] Exception:', e)
+      return { error: `Excepción: ${String(e)}` }
+    }
   }
 
   if (name === 'update_order') {
     const { id, fields } = input as { id: string; fields: ToolInput }
     const { error } = await supabase.from('orders').update(fields).eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: error.message || JSON.stringify(error) }
     return { success: true }
   }
 
