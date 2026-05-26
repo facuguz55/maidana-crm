@@ -8,14 +8,14 @@ import type { Order, OrderStatus } from '@/lib/types'
 interface Props { initialOrders: Order[] }
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  pendiente: 'Pendiente',
-  verificado: 'Verificado',
+  pagado: 'Pagado',
+  preparando: 'Preparando',
   enviado: 'Enviado',
 }
 const STATUS_COLOR: Record<OrderStatus, string> = {
-  pendiente: '#f59e0b',
-  verificado: '#3b82f6',
-  enviado: '#22c55e',
+  pagado: '#22c55e',
+  preparando: '#f59e0b',
+  enviado: '#3b82f6',
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {

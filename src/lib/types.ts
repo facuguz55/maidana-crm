@@ -1,5 +1,5 @@
 export type ContactStatus = 'nuevo' | 'frio' | 'caliente' | 'verificar_pago' | 'pagado'
-export type OrderStatus = 'pendiente' | 'verificado' | 'enviado'
+export type OrderStatus = 'pagado' | 'preparando' | 'enviado'
 
 export interface Contact {
   id: string

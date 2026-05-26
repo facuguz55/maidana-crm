@@ -69,7 +69,7 @@ export async function POST() {
             address: address ?? '',
             quantity,
             phone,
-            status: 'pendiente',
+            status: 'pagado',
             form_timestamp: timestamp,
             email: email || null,
             product: product || null,
