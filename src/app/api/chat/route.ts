@@ -124,9 +124,21 @@ async function executeTool(name: string, input: ToolInput): Promise<unknown> {
 
   if (name === 'add_order') {
     try {
+      // Auto-completar unit_cost_override desde product_costs_maidana si no viene en el input
+      let unitCostOverride = (input.unit_cost_override as number | undefined) ?? null
+      if (!unitCostOverride && input.product) {
+        const { data: costData } = await supabase
+          .from('product_costs_maidana')
+          .select('cost_per_unit')
+          .ilike('product', String(input.product))
+          .limit(1)
+          .single()
+        if (costData?.cost_per_unit) unitCostOverride = costData.cost_per_unit
+      }
+
       const { data, error } = await supabase
         .from('orders')
-        .insert({ status: 'pagado', ...input })
+        .insert({ status: 'pagado', ...input, unit_cost_override: unitCostOverride })
         .select()
       if (error) {
         const msg = error.message || error.code || JSON.stringify(error)
