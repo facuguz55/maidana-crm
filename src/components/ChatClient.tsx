@@ -37,15 +37,25 @@ export default function ChatClient({ initialMessages }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  function toggleListening() {
+  async function toggleListening() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition
-    if (!SR) { alert('Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.'); return }
+    if (!SR) { toast.error('Tu navegador no soporta voz. Usá Chrome o Edge.'); return }
 
     if (listening) {
       recognitionRef.current?.stop()
       setListening(false)
+      return
+    }
+
+    // Pedir permiso del micrófono antes de iniciar recognition,
+    // así el diálogo del browser no interrumpe la instancia.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+    } catch {
+      toast.error('No se pudo acceder al micrófono')
       return
     }
 
@@ -63,7 +73,7 @@ export default function ChatClient({ initialMessages }: Props) {
       setInput(prev => (prev ? prev + ' ' + transcript : transcript))
       inputRef.current?.focus()
     }
-    recognition.onerror = () => setListening(false)
+    recognition.onerror = () => { toast.error('Error al grabar'); setListening(false) }
     recognition.onend = () => setListening(false)
 
     recognitionRef.current = recognition
@@ -222,17 +232,53 @@ export default function ChatClient({ initialMessages }: Props) {
 
       {/* Input */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid #1e2d45', flexShrink: 0 }}>
+
+        {/* Banner de grabación — visible y con botón cancelar claro */}
+        {listening && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.35)',
+            borderRadius: '12px', padding: '10px 14px', marginBottom: '8px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{
+                    width: '4px', borderRadius: '2px', background: '#ef4444',
+                    animation: 'voiceBar 0.8s ease-in-out infinite',
+                    animationDelay: `${i * 0.15}s`,
+                  }} />
+                ))}
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#ef4444' }}>Grabando... hablá ahora</span>
+            </div>
+            <button
+              onClick={toggleListening}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.4)',
+                background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+                fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              <MicOff size={13} />
+              Cancelar
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '12px', padding: '8px 8px 8px 14px' }}>
           <textarea
             ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Escribí tu mensaje... (Enter para enviar)"
+            placeholder={listening ? 'Escuchando...' : 'Escribí tu mensaje... (Enter para enviar)'}
             rows={1}
+            disabled={listening}
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none', resize: 'none',
-              color: '#f8fafc', fontSize: '13px', lineHeight: '1.5', maxHeight: '120px',
+              color: listening ? '#64748b' : '#f8fafc', fontSize: '13px', lineHeight: '1.5', maxHeight: '120px',
               overflow: 'auto', fontFamily: 'inherit',
             }}
             onInput={e => {
@@ -250,19 +296,18 @@ export default function ChatClient({ initialMessages }: Props) {
               color: listening ? '#ef4444' : '#64748b',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.15s',
-              animation: listening ? 'micPulse 1s ease-in-out infinite' : 'none',
             }}
           >
             {listening ? <MicOff size={15} /> : <Mic size={15} />}
           </button>
           <button
             onClick={send}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || listening}
             style={{
               width: '34px', height: '34px', borderRadius: '8px', border: 'none', flexShrink: 0,
-              background: input.trim() && !loading ? '#f97316' : '#1e2d45',
-              color: input.trim() && !loading ? '#fff' : '#475569',
-              cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
+              background: input.trim() && !loading && !listening ? '#f97316' : '#1e2d45',
+              color: input.trim() && !loading && !listening ? '#fff' : '#475569',
+              cursor: input.trim() && !loading && !listening ? 'pointer' : 'not-allowed',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background 0.15s',
             }}
@@ -280,9 +325,9 @@ export default function ChatClient({ initialMessages }: Props) {
           0%, 100% { opacity: 0.3; transform: scale(0.8); }
           50% { opacity: 1; transform: scale(1.1); }
         }
-        @keyframes micPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
-          50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+        @keyframes voiceBar {
+          0%, 100% { height: 4px; }
+          50% { height: 16px; }
         }
       `}</style>
     </div>
