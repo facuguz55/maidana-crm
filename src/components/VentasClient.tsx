@@ -278,7 +278,7 @@ export default function VentasClient({ initialOrders }: Props) {
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
-                      <span style={{ color: order.unit_cost_override ? '#fcd34d' : '#475569', cursor: 'text', borderBottom: '1px dashed #334155', paddingBottom: '1px' }}>
+                      <span style={{ color: order.unit_cost_override ? '#fcd34d' : '#475569', cursor: 'text' }}>
                         {order.unit_cost_override ? `$${order.unit_cost_override.toLocaleString('es-AR')}` : '—'}
                       </span>
                     )}
@@ -297,7 +297,7 @@ export default function VentasClient({ initialOrders }: Props) {
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
-                      <span style={{ color: order.sale_price ? '#f8fafc' : '#475569', cursor: 'text', borderBottom: '1px dashed #334155', paddingBottom: '1px' }}>
+                      <span style={{ color: order.sale_price ? '#f8fafc' : '#475569', cursor: 'text' }}>
                         {order.sale_price ? `$${order.sale_price.toLocaleString('es-AR')}` : '—'}
                       </span>
                     )}
