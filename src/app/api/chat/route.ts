@@ -327,6 +327,7 @@ export async function POST(req: Request) {
 
     let iterations = 0
     let finalText = ''
+    let orderCreated = false
 
     while (iterations < 6) {
       iterations++
@@ -368,6 +369,9 @@ export async function POST(req: Request) {
         for (const block of content) {
           if (block.type === 'tool_use') {
             const result = await executeTool(block.name, block.input)
+            if (block.name === 'add_order' && (result as { success?: boolean }).success) {
+              orderCreated = true
+            }
             toolResults.push({
               type: 'tool_result',
               tool_use_id: block.id,
@@ -387,6 +391,11 @@ export async function POST(req: Request) {
     if (!finalText) finalText = 'No pude procesar la solicitud.'
 
     await supabase.from('chat_messages').insert({ role: 'assistant', content: finalText })
+
+    // Limpiar historial tras registro exitoso para evitar que el modelo copie el patrón
+    if (orderCreated) {
+      await supabase.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    }
 
     return NextResponse.json({ message: finalText })
   } catch (err) {
