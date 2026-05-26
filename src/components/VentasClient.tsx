@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, Download, RefreshCw, Package, Trash2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -43,12 +43,14 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
   const emptyForm = { name: '', phone: '', email: '', product: '', quantity: '1', address: '', postal_code: '', extra_data: '', status: 'pagado' as OrderStatus, unit_cost_override: '', sale_price: '' }
   const [form, setForm] = useState(emptyForm)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const refreshVersion = useRef(0)
 
   async function refreshOrders() {
+    const version = ++refreshVersion.current
     const supabase = createClient()
     const { data } = await supabase
       .from('orders').select('*').order('created_at', { ascending: false })
-    if (data) setOrders(data as Order[])
+    if (data && version === refreshVersion.current) setOrders(data as Order[])
   }
 
   useEffect(() => {
