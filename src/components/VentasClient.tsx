@@ -37,6 +37,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [editingPrice, setEditingPrice] = useState<{ id: string; value: string } | null>(null)
   const [editingCost, setEditingCost] = useState<{ id: string; value: string } | null>(null)
+  const [editingQty, setEditingQty] = useState<{ id: string; value: string } | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const emptyForm = { name: '', phone: '', email: '', product: '', quantity: '1', address: '', postal_code: '', extra_data: '', status: 'pagado' as OrderStatus, unit_cost_override: '', sale_price: '' }
@@ -144,6 +145,19 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
       toast.error('Error al guardar costo')
     }
     setEditingCost(null)
+  }
+
+  async function saveQuantity(orderId: string, rawValue: string) {
+    const qty = parseInt(rawValue.trim())
+    if (isNaN(qty) || qty < 1) { setEditingQty(null); return }
+    const supabase = createClient()
+    const { error } = await supabase.from('orders').update({ quantity: qty }).eq('id', orderId)
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, quantity: qty } : o))
+    } else {
+      toast.error('Error al guardar cantidad')
+    }
+    setEditingQty(null)
   }
 
   async function saveSalePrice(orderId: string, rawValue: string) {
@@ -317,7 +331,24 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{order.phone}</td>
                   <td style={{ ...TD, color: '#64748b' }}>{order.email ?? '—'}</td>
                   <td style={{ ...TD, color: '#cbd5e1' }}>{order.product ?? '—'}</td>
-                  <td style={{ ...TD, fontWeight: 700, color: '#f97316', textAlign: 'center', whiteSpace: 'nowrap' }}>{order.quantity}</td>
+                  <td style={{ ...TD, textAlign: 'center', whiteSpace: 'nowrap' }}
+                    onClick={() => setEditingQty({ id: order.id, value: String(order.quantity) })}
+                  >
+                    {editingQty?.id === order.id ? (
+                      <input
+                        autoFocus
+                        type="number" min="1"
+                        value={editingQty.value}
+                        onChange={e => setEditingQty({ id: order.id, value: e.target.value })}
+                        onBlur={() => saveQuantity(order.id, editingQty.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveQuantity(order.id, editingQty.value); if (e.key === 'Escape') setEditingQty(null) }}
+                        style={{ width: '60px', background: '#1e293b', border: '1px solid #f97316', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none', textAlign: 'center' }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span style={{ fontWeight: 700, color: '#f97316', cursor: 'text' }}>{order.quantity}</span>
+                    )}
+                  </td>
                   <td style={{ ...TD, color: '#94a3b8' }}>{order.address}</td>
                   <td style={{ ...TD, color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>{order.postal_code ?? '—'}</td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}
