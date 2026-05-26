@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Search, Download, RefreshCw, Package, Trash2 } from 'lucide-react'
+import { Search, Download, RefreshCw, Package, Trash2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderStatus } from '@/lib/types'
@@ -37,6 +37,10 @@ export default function VentasClient({ initialOrders }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [editingPrice, setEditingPrice] = useState<{ id: string; value: string } | null>(null)
   const [editingCost, setEditingCost] = useState<{ id: string; value: string } | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const emptyForm = { name: '', phone: '', email: '', product: '', quantity: '1', address: '', postal_code: '', extra_data: '', status: 'pagado' as OrderStatus }
+  const [form, setForm] = useState(emptyForm)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function refreshOrders() {
@@ -63,6 +67,35 @@ export default function VentasClient({ initialOrders }: Props) {
     const interval = setInterval(syncSheets, 5 * 60 * 1000)
     return () => { supabase.removeChannel(channel); clearInterval(interval) }
   }, [])
+
+  async function addOrder() {
+    if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
+      toast.error('Nombre, teléfono y dirección son obligatorios')
+      return
+    }
+    setSaving(true)
+    const supabase = createClient()
+    const { data, error } = await supabase.from('orders').insert({
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      email: form.email.trim() || null,
+      product: form.product.trim() || null,
+      quantity: parseInt(form.quantity) || 1,
+      address: form.address.trim(),
+      postal_code: form.postal_code.trim() || null,
+      extra_data: form.extra_data.trim() || null,
+      status: form.status,
+    }).select().single()
+    if (!error && data) {
+      setOrders(prev => [data as Order, ...prev])
+      setForm(emptyForm)
+      setShowModal(false)
+      toast.success('Venta agregada')
+    } else {
+      toast.error('Error al agregar venta')
+    }
+    setSaving(false)
+  }
 
   async function deleteOrder(orderId: string) {
     if (!confirm('¿Eliminar esta orden?')) return
@@ -218,6 +251,12 @@ export default function VentasClient({ initialOrders }: Props) {
           >
             <Download size={13} /> CSV
           </button>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '8px', color: '#f97316', cursor: 'pointer', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}
+          >
+            <Plus size={13} /> Nueva
+          </button>
         </div>
       </div>
 
@@ -331,6 +370,85 @@ export default function VentasClient({ initialOrders }: Props) {
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* Modal nueva venta */}
+      {showModal && (
+        <div
+          onClick={() => setShowModal(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#0d1526', border: '1px solid #1e2d45', borderRadius: '14px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflow: 'auto' }}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>Nueva venta</h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[
+                { label: 'Nombre y Apellido *', key: 'name', placeholder: 'Ej: Juan Pérez' },
+                { label: 'Teléfono *', key: 'phone', placeholder: 'Ej: 3516123456' },
+                { label: 'Dirección *', key: 'address', placeholder: 'Ej: San Martín 123, Córdoba' },
+                { label: 'Qué compró', key: 'product', placeholder: 'Ej: Álbum' },
+                { label: 'Correo electrónico', key: 'email', placeholder: 'Ej: juan@gmail.com' },
+                { label: 'Código postal', key: 'postal_code', placeholder: 'Ej: 5000' },
+                { label: 'Datos extra', key: 'extra_data', placeholder: 'Notas adicionales...' },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>{label}</label>
+                  <input
+                    value={form[key as keyof typeof form]}
+                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>Cantidad *</label>
+                  <input
+                    type="number" min="1"
+                    value={form.quantity}
+                    onChange={e => setForm(prev => ({ ...prev, quantity: e.target.value }))}
+                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>Estado</label>
+                  <select
+                    value={form.status}
+                    onChange={e => setForm(prev => ({ ...prev, status: e.target.value as OrderStatus }))}
+                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                  >
+                    <option value="pagado">Pagado</option>
+                    <option value="preparando">Preparando</option>
+                    <option value="enviado">Enviado</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #1e2d45', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #1e2d45', borderRadius: '8px', color: '#64748b', fontSize: '13px', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={addOrder}
+                disabled={saving}
+                style={{ padding: '8px 20px', background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '8px', color: '#f97316', fontSize: '13px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
+              >
+                {saving ? 'Guardando...' : 'Agregar venta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
