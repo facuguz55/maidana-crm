@@ -63,8 +63,10 @@ export async function POST() {
 
       const contactId = contacts?.[0]?.id ?? null
 
-      // Upsert usando form_timestamp como clave única
-      const { error } = await supabase
+      // Upsert usando form_timestamp como clave única.
+      // Con ignoreDuplicates: true, Supabase solo devuelve data cuando realmente inserta —
+      // por eso usamos .select('id') para contar solo inserciones reales.
+      const { data: upserted, error } = await supabase
         .from('orders')
         .upsert(
           {
@@ -82,8 +84,9 @@ export async function POST() {
           },
           { onConflict: 'form_timestamp', ignoreDuplicates: true }
         )
+        .select('id')
 
-      if (!error) synced++
+      if (!error && upserted && upserted.length > 0) synced++
     }
 
     return NextResponse.json({ synced })
