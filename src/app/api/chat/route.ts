@@ -265,18 +265,29 @@ export async function POST(req: Request) {
     const { message } = await req.json()
     if (!message?.trim()) return NextResponse.json({ error: 'Mensaje vacío' }, { status: 400 })
 
-    await supabase.from('chat_messages').insert({ role: 'user', content: message })
-
     const { data: history } = await supabase
       .from('chat_messages')
       .select('role, content')
       .order('created_at', { ascending: true })
       .limit(40)
 
-    const messages: AnthropicMessage[] = (history ?? []).map(m => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }))
+    // Filtrar el historial para garantizar roles alternados (evita error 400 de Anthropic
+    // cuando un mensaje anterior quedó huérfano por un fallo de API).
+    const cleanHistory: { role: 'user' | 'assistant'; content: string }[] = []
+    for (const m of history ?? []) {
+      const last = cleanHistory[cleanHistory.length - 1]
+      if (last && last.role === m.role) continue
+      cleanHistory.push({ role: m.role as 'user' | 'assistant', content: m.content })
+    }
+    // Si el historial termina con un 'user', eliminarlo para que el mensaje actual sea el último
+    if (cleanHistory[cleanHistory.length - 1]?.role === 'user') cleanHistory.pop()
+
+    await supabase.from('chat_messages').insert({ role: 'user', content: message })
+
+    const messages: AnthropicMessage[] = [
+      ...cleanHistory,
+      { role: 'user', content: message },
+    ]
 
     let iterations = 0
     let finalText = ''
