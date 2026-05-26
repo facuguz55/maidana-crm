@@ -182,7 +182,6 @@ export default function VentasClient({ initialOrders }: Props) {
           <table style={{ borderCollapse: 'collapse', width: 'max-content', minWidth: '100%' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
               <tr>
-                <th style={TH}>Marca temporal</th>
                 <th style={TH}>Nombre y Apellido</th>
                 <th style={TH}>Teléfono</th>
                 <th style={TH}>Correo Electrónico</th>
@@ -202,11 +201,6 @@ export default function VentasClient({ initialOrders }: Props) {
                   onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = '#111e2e'}
                   onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
                 >
-                  <td suppressHydrationWarning style={{ ...TD, color: '#64748b', whiteSpace: 'nowrap', fontSize: '12px' }}>
-                    {order.form_timestamp
-                      ? new Date(order.form_timestamp).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
-                      : new Date(order.created_at).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}
-                  </td>
                   <td style={{ ...TD, fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap' }}>{order.name}</td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{order.phone}</td>
                   <td style={{ ...TD, color: '#64748b' }}>{order.email ?? '—'}</td>
