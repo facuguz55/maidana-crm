@@ -29,6 +29,7 @@ export interface Order {
   postal_code?: string | null
   extra_data?: string | null
   sale_price?: number | null
+  unit_cost_override?: number | null
 }
 
 export interface ProductCost {

@@ -36,6 +36,7 @@ export default function VentasClient({ initialOrders }: Props) {
   const [search, setSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [editingPrice, setEditingPrice] = useState<{ id: string; value: string } | null>(null)
+  const [editingCost, setEditingCost] = useState<{ id: string; value: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function refreshOrders() {
@@ -79,6 +80,20 @@ export default function VentasClient({ initialOrders }: Props) {
       toast.error('Error al eliminar')
     }
     setDeletingId(null)
+  }
+
+  async function saveUnitCost(orderId: string, rawValue: string) {
+    const trimmed = rawValue.trim()
+    const cost = trimmed === '' ? null : parseFloat(trimmed.replace(',', '.'))
+    if (cost !== null && (isNaN(cost) || cost < 0)) { setEditingCost(null); return }
+    const supabase = createClient()
+    const { error } = await supabase.from('orders').update({ unit_cost_override: cost }).eq('id', orderId)
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, unit_cost_override: cost } : o))
+    } else {
+      toast.error('Error al guardar costo')
+    }
+    setEditingCost(null)
   }
 
   async function saveSalePrice(orderId: string, rawValue: string) {
@@ -226,6 +241,7 @@ export default function VentasClient({ initialOrders }: Props) {
                 <th style={TH}>Cantidad</th>
                 <th style={TH}>Dirección</th>
                 <th style={TH}>Cód. Postal</th>
+                <th style={TH}>Costo unit.</th>
                 <th style={TH}>Precio unit.</th>
                 <th style={TH}>Total ($)</th>
                 <th style={TH}>Estado</th>
@@ -248,6 +264,25 @@ export default function VentasClient({ initialOrders }: Props) {
                   <td style={{ ...TD, fontWeight: 700, color: '#f97316', textAlign: 'center', whiteSpace: 'nowrap' }}>{order.quantity}</td>
                   <td style={{ ...TD, color: '#94a3b8' }}>{order.address}</td>
                   <td style={{ ...TD, color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>{order.postal_code ?? '—'}</td>
+                  <td style={{ ...TD, whiteSpace: 'nowrap' }}
+                    onClick={() => setEditingCost({ id: order.id, value: String(order.unit_cost_override ?? '') })}
+                  >
+                    {editingCost?.id === order.id ? (
+                      <input
+                        autoFocus
+                        value={editingCost.value}
+                        onChange={e => setEditingCost({ id: order.id, value: e.target.value })}
+                        onBlur={() => saveUnitCost(order.id, editingCost.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveUnitCost(order.id, editingCost.value); if (e.key === 'Escape') setEditingCost(null) }}
+                        style={{ width: '80px', background: '#1e293b', border: '1px solid #f59e0b', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none' }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span style={{ color: order.unit_cost_override ? '#fcd34d' : '#475569', cursor: 'text', borderBottom: '1px dashed #334155', paddingBottom: '1px' }}>
+                        {order.unit_cost_override ? `$${order.unit_cost_override.toLocaleString('es-AR')}` : '—'}
+                      </span>
+                    )}
+                  </td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}
                     onClick={() => setEditingPrice({ id: order.id, value: String(order.sale_price ?? '') })}
                   >

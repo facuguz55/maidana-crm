@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
     const { data: orders, error } = await supabase
       .from('orders')
-      .select('name, phone, product, quantity, sale_price, status')
+      .select('name, phone, product, quantity, sale_price, unit_cost_override, status')
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!orders || orders.length === 0) {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const costsMap: Record<string, ProductCost> = {}
     for (const c of costs) costsMap[c.product.toLowerCase()] = c
 
-    type OrderRow = { name: string; phone: string; product: string | null; quantity: number; sale_price: number | null; status: string }
+    type OrderRow = { name: string; phone: string; product: string | null; quantity: number; sale_price: number | null; unit_cost_override: number | null; status: string }
 
     let totalIngresos = 0
     let totalCostos = 0
@@ -37,9 +37,8 @@ export async function POST(req: Request) {
 
       const productKey = (o.product ?? 'desconocido').toLowerCase()
       const costInfo = costsMap[productKey]
-      const costoPorOrden = costInfo
-        ? costInfo.cost_per_unit * qty + costInfo.shipping_cost_per_order
-        : 0
+      const costUnitario = o.unit_cost_override ?? costInfo?.cost_per_unit ?? 0
+      const costoPorOrden = costUnitario * qty + (costInfo?.shipping_cost_per_order ?? 0)
 
       totalIngresos += ingreso
       totalCostos += costoPorOrden
