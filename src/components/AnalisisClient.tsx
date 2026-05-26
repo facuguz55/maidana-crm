@@ -126,7 +126,7 @@ export default function AnalisisClient({ initialCosts }: Props) {
                     <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Costo por unidad</div>
                     <input
                       style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
-                      defaultValue={c.cost_per_unit}
+                      defaultValue={c.cost_per_unit || 9200}
                       onFocus={e => e.target.select()}
                       onBlur={e => updateCost(c.id, 'cost_per_unit', e.target.value)}
                     />
