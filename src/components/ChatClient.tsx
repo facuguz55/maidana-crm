@@ -31,7 +31,7 @@ export default function ChatClient({ initialMessages }: Props) {
   const [listening, setListening] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<{ stop(): void } | null>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -48,12 +48,16 @@ export default function ChatClient({ initialMessages }: Props) {
       return
     }
 
-    const recognition = new SR()
+    const recognition = new SR() as unknown as {
+      lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void;
+      onresult: ((e: { results: { 0: { transcript: string }[] }[] }) => void) | null;
+      onerror: (() => void) | null; onend: (() => void) | null;
+    }
     recognition.lang = 'es-AR'
     recognition.interimResults = false
     recognition.continuous = false
 
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
+    recognition.onresult = (e) => {
       const transcript = e.results[0][0].transcript
       setInput(prev => (prev ? prev + ' ' + transcript : transcript))
       inputRef.current?.focus()
