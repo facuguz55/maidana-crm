@@ -3,9 +3,9 @@ import { useState, useEffect } from 'react'
 import { Search, Download, RefreshCw, Package, Trash2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import type { Order, OrderStatus } from '@/lib/types'
+import type { Order, OrderStatus, ProductCost } from '@/lib/types'
 
-interface Props { initialOrders: Order[] }
+interface Props { initialOrders: Order[]; initialCosts: ProductCost[] }
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   pagado: 'Pagado',
@@ -31,7 +31,7 @@ function StatusBadge({ status }: { status: OrderStatus }) {
   )
 }
 
-export default function VentasClient({ initialOrders }: Props) {
+export default function VentasClient({ initialOrders, initialCosts }: Props) {
   const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [search, setSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
@@ -39,7 +39,7 @@ export default function VentasClient({ initialOrders }: Props) {
   const [editingCost, setEditingCost] = useState<{ id: string; value: string } | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
-  const emptyForm = { name: '', phone: '', email: '', product: '', quantity: '1', address: '', postal_code: '', extra_data: '', status: 'pagado' as OrderStatus }
+  const emptyForm = { name: '', phone: '', email: '', product: '', quantity: '1', address: '', postal_code: '', extra_data: '', status: 'pagado' as OrderStatus, unit_cost_override: '', sale_price: '' }
   const [form, setForm] = useState(emptyForm)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -68,11 +68,26 @@ export default function VentasClient({ initialOrders }: Props) {
     return () => { supabase.removeChannel(channel); clearInterval(interval) }
   }, [])
 
+  function handleProductChange(value: string) {
+    setForm(prev => {
+      const match = initialCosts.find(c =>
+        c.product.toLowerCase() === value.toLowerCase().trim()
+      )
+      return {
+        ...prev,
+        product: value,
+        unit_cost_override: match ? String(match.cost_per_unit) : prev.unit_cost_override,
+      }
+    })
+  }
+
   async function addOrder() {
     if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
       toast.error('Nombre, teléfono y dirección son obligatorios')
       return
     }
+    const unitCost = form.unit_cost_override.trim() ? parseFloat(form.unit_cost_override.replace(',', '.')) : null
+    const salePrice = form.sale_price.trim() ? parseFloat(form.sale_price.replace(',', '.')) : null
     setSaving(true)
     const supabase = createClient()
     const { data, error } = await supabase.from('orders').insert({
@@ -85,6 +100,8 @@ export default function VentasClient({ initialOrders }: Props) {
       postal_code: form.postal_code.trim() || null,
       extra_data: form.extra_data.trim() || null,
       status: form.status,
+      unit_cost_override: unitCost,
+      sale_price: salePrice,
     }).select().single()
     if (!error && data) {
       setOrders(prev => [data as Order, ...prev])
@@ -392,7 +409,6 @@ export default function VentasClient({ initialOrders }: Props) {
                 { label: 'Nombre y Apellido *', key: 'name', placeholder: 'Ej: Juan Pérez' },
                 { label: 'Teléfono *', key: 'phone', placeholder: 'Ej: 3516123456' },
                 { label: 'Dirección *', key: 'address', placeholder: 'Ej: San Martín 123, Córdoba' },
-                { label: 'Qué compró', key: 'product', placeholder: 'Ej: Álbum' },
                 { label: 'Correo electrónico', key: 'email', placeholder: 'Ej: juan@gmail.com' },
                 { label: 'Código postal', key: 'postal_code', placeholder: 'Ej: 5000' },
                 { label: 'Datos extra', key: 'extra_data', placeholder: 'Notas adicionales...' },
@@ -407,6 +423,20 @@ export default function VentasClient({ initialOrders }: Props) {
                   />
                 </div>
               ))}
+              {/* Producto con auto-completado de costo */}
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>Qué compró</label>
+                <input
+                  value={form.product}
+                  onChange={e => handleProductChange(e.target.value)}
+                  placeholder="Ej: Álbum"
+                  list="product-options"
+                  style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                />
+                <datalist id="product-options">
+                  {initialCosts.map(c => <option key={c.id} value={c.product} />)}
+                </datalist>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>Cantidad *</label>
@@ -428,6 +458,31 @@ export default function VentasClient({ initialOrders }: Props) {
                     <option value="preparando">Preparando</option>
                     <option value="enviado">Enviado</option>
                   </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>
+                    Costo unitario
+                    {form.unit_cost_override && <span style={{ color: '#22c55e', marginLeft: '4px' }}>✓ auto</span>}
+                  </label>
+                  <input
+                    type="number" min="0"
+                    value={form.unit_cost_override}
+                    onChange={e => setForm(prev => ({ ...prev, unit_cost_override: e.target.value }))}
+                    placeholder="Ej: 9200"
+                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>Precio unitario</label>
+                  <input
+                    type="number" min="0"
+                    value={form.sale_price}
+                    onChange={e => setForm(prev => ({ ...prev, sale_price: e.target.value }))}
+                    placeholder="Ej: 17000"
+                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                  />
                 </div>
               </div>
             </div>
