@@ -12,6 +12,10 @@ export default function AnalisisClient({ initialCosts }: Props) {
   const [saving, setSaving] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS')
+
+  const sym = currency === 'ARS' ? '$' : 'U$S'
+  function fmt(n: number) { return `${sym} ${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` }
 
   function updateCost(id: number, field: 'cost_per_unit' | 'shipping_cost_per_order', value: string) {
     const num = parseFloat(value.replace(',', '.'))
@@ -71,9 +75,21 @@ export default function AnalisisClient({ initialCosts }: Props) {
       <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#f8fafc' }}>Análisis Financiero</h1>
-          <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Configurá los costos y ejecutá el análisis con IA</p>
+        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#f8fafc' }}>Análisis Financiero</h1>
+            <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Configurá los costos y ejecutá el análisis con IA</p>
+          </div>
+          <div style={{ display: 'flex', background: '#0d1526', border: '1px solid #1e2d45', borderRadius: '8px', overflow: 'hidden', alignSelf: 'flex-start' }}>
+            {(['ARS', 'USD'] as const).map(c => (
+              <button key={c} onClick={() => setCurrency(c)} style={{
+                padding: '6px 14px', fontSize: '12px', fontWeight: 700, border: 'none', cursor: 'pointer',
+                background: currency === c ? 'rgba(249,115,22,0.15)' : 'transparent',
+                color: currency === c ? '#f97316' : '#64748b',
+                borderRight: c === 'ARS' ? '1px solid #1e2d45' : 'none',
+              }}>{c === 'ARS' ? '$ ARS' : 'U$S USD'}</button>
+            ))}
+          </div>
         </div>
 
         {/* Tabla de costos */}
@@ -160,9 +176,9 @@ export default function AnalisisClient({ initialCosts }: Props) {
             {/* Cards de métricas */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               {[
-                { label: 'Ingresos totales', value: `$${result.total_ingresos.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`, color: '#3b82f6', icon: DollarSign },
-                { label: 'Costos totales', value: `$${result.total_costos.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`, color: '#ef4444', icon: TrendingUp },
-                { label: 'Ganancia neta', value: `$${result.total_ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`, color: '#22c55e', icon: DollarSign },
+                { label: 'Ingresos totales', value: fmt(result.total_ingresos), color: '#3b82f6', icon: DollarSign },
+                { label: 'Costos totales', value: fmt(result.total_costos), color: '#ef4444', icon: TrendingUp },
+                { label: 'Ganancia neta', value: fmt(result.total_ganancia), color: '#22c55e', icon: DollarSign },
                 { label: 'Margen', value: `${result.margen_porcentaje.toFixed(1)}%`, color: '#f97316', icon: TrendingUp },
               ].map(({ label, value, color, icon: Icon }) => (
                 <div key={label} style={{ background: '#0d1526', border: `1px solid ${color}33`, borderRadius: '10px', padding: '16px' }}>
@@ -193,7 +209,7 @@ export default function AnalisisClient({ initialCosts }: Props) {
                 </div>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc' }}>{result.cliente_mas_grande.nombre}</div>
                 <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                  {result.cliente_mas_grande.cantidad} uds · ${result.cliente_mas_grande.ganancia.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                  {result.cliente_mas_grande.cantidad} uds · {fmt(result.cliente_mas_grande.ganancia)}
                 </div>
               </div>
             </div>
