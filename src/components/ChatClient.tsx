@@ -51,7 +51,7 @@ export default function ChatClient({ initialMessages }: Props) {
 
     const recognition = new SR() as unknown as {
       lang: string; interimResults: boolean; continuous: boolean; start(): void; stop(): void;
-      onresult: ((e: { results: { 0: { transcript: string }[] }[] }) => void) | null;
+      onresult: ((e: { results: { [i: number]: { transcript: string }[] } }) => void) | null;
       onerror: (() => void) | null; onend: (() => void) | null;
     }
     recognition.lang = 'es-AR'
