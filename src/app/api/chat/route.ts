@@ -12,6 +12,8 @@ Podés:
 - Consultar, agregar y modificar ventas/órdenes
 - Dar resúmenes financieros (ingresos, costos, ganancias)
 - Responder preguntas sobre clientes y pedidos
+- Buscar contactos por nombre o teléfono
+- Enviar el formulario de pedido a cualquier contacto por WhatsApp
 - Ayudar a analizar el negocio
 
 Siempre respondé en español, de forma clara y directa. Si vas a mostrar números, usá formato legible (ej: $9.200). Cuando uses herramientas, explicá brevemente qué encontraste o hiciste.`
@@ -65,6 +67,29 @@ const tools = [
     },
   },
   {
+    name: 'send_form',
+    description: 'Envía el mensaje del formulario de pedido a un contacto por WhatsApp. Buscar primero el contacto con get_contacts para obtener su teléfono e ID.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        contact_id: { type: 'string', description: 'ID del contacto' },
+        phone: { type: 'string', description: 'Teléfono del contacto' },
+        name: { type: 'string', description: 'Nombre del contacto (para confirmar)' },
+      },
+      required: ['contact_id', 'phone'],
+    },
+  },
+  {
+    name: 'get_contacts',
+    description: 'Busca contactos por nombre o teléfono.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        search: { type: 'string', description: 'Nombre o teléfono a buscar' },
+      },
+    },
+  },
+  {
     name: 'get_financial_summary',
     description: 'Calcula el resumen financiero del negocio: ingresos totales, costos, ganancias, margen, por producto y por cliente.',
     input_schema: {
@@ -112,6 +137,58 @@ async function executeTool(name: string, input: ToolInput): Promise<unknown> {
     const { error } = await supabase.from('orders').update(fields).eq('id', id)
     if (error) return { error: error.message }
     return { success: true }
+  }
+
+  if (name === 'get_contacts') {
+    const search = input.search as string | undefined
+    let query = supabase
+      .from('contacts')
+      .select('id, name, phone, status, last_message_at')
+      .order('last_message_at', { ascending: false })
+      .limit(30)
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
+    }
+    const { data } = await query
+    return data ?? []
+  }
+
+  if (name === 'send_form') {
+    const { contact_id, phone } = input as { contact_id: string; phone: string }
+
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('form_message, evolution_api_url, evolution_api_key, instance_name')
+      .eq('id', 1)
+      .single()
+
+    if (!settings?.form_message) return { error: 'No hay mensaje de formulario configurado en Settings' }
+    if (!settings?.evolution_api_url) return { error: 'Evolution API no configurada' }
+
+    const base = settings.evolution_api_url.replace(/\/$/, '')
+    const evoRes = await fetch(`${base}/send/text`, {
+      method: 'POST',
+      headers: { 'apikey': settings.evolution_api_key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number: phone, text: settings.form_message, delay: 0 }),
+    })
+
+    if (!evoRes.ok) {
+      const err = await evoRes.text()
+      return { error: `Evolution API error: ${err}` }
+    }
+
+    let wamid: string | null = null
+    try { const d = await evoRes.json(); wamid = d?.key?.id || d?.wuid || null } catch {}
+
+    await supabase.from('messages').insert({
+      contact_id,
+      body: settings.form_message,
+      direction: 'outbound',
+      timestamp: new Date().toISOString(),
+      wamid,
+    })
+
+    return { success: true, message: 'Formulario enviado correctamente' }
   }
 
   if (name === 'get_financial_summary') {
