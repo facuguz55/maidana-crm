@@ -114,43 +114,34 @@ export default function AnalisisClient({ initialCosts }: Props) {
             </button>
           </div>
 
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-            <thead>
-              <tr>
-                {['Producto', 'Costo por unidad ($)', 'Costo de envío ($)'].map(h => (
-                  <th key={h} style={{ padding: '10px 20px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #1e2d45' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {costs.map(c => (
-                <tr key={c.id}>
-                  <td style={{ padding: '12px 20px', fontSize: '14px', fontWeight: 600, color: '#f8fafc', textTransform: 'capitalize' }}>{c.product}</td>
-                  <td style={{ padding: '12px 20px' }}>
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {costs.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#64748b', fontSize: '13px', padding: '12px' }}>No hay productos configurados</p>
+            )}
+            {costs.map(c => (
+              <div key={c.id} style={{ background: '#111e2e', borderRadius: '8px', padding: '12px 14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', textTransform: 'capitalize', marginBottom: '10px' }}>{c.product}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Costo por unidad</div>
                     <input
-                      style={inputStyle}
+                      style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
                       defaultValue={c.cost_per_unit}
                       onBlur={e => updateCost(c.id, 'cost_per_unit', e.target.value)}
                     />
-                  </td>
-                  <td style={{ padding: '12px 20px' }}>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>Costo de envío</div>
                     <input
-                      style={inputStyle}
+                      style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
                       defaultValue={c.shipping_cost_per_order}
                       onBlur={e => updateCost(c.id, 'shipping_cost_per_order', e.target.value)}
                     />
-                  </td>
-                </tr>
-              ))}
-              {costs.length === 0 && (
-                <tr>
-                  <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                    No hay productos configurados
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Botón analizar */}
