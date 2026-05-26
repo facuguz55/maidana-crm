@@ -39,8 +39,12 @@ export async function POST() {
     const dataRows = rows.slice(1)
     let synced = 0
 
-    const { data: blocklist } = await supabase.from('sync_blocklist').select('form_timestamp')
+    const [{ data: blocklist }, { data: existing }] = await Promise.all([
+      supabase.from('sync_blocklist').select('form_timestamp'),
+      supabase.from('orders').select('form_timestamp').not('form_timestamp', 'is', null),
+    ])
     const blocked = new Set((blocklist ?? []).map((r: { form_timestamp: string }) => r.form_timestamp))
+    const alreadySynced = new Set((existing ?? []).map((r: { form_timestamp: string }) => r.form_timestamp))
 
     for (const row of dataRows) {
       // Columnas del formulario:
@@ -50,6 +54,7 @@ export async function POST() {
       const [timestamp, , name, phoneRaw, email, product, quantityRaw, address, postalCode, extraData] = row
       if (!timestamp || !name || !phoneRaw) continue
       if (blocked.has(timestamp)) continue
+      if (alreadySynced.has(timestamp)) continue
 
       const phone = normalizePhone(phoneRaw)
       const quantity = parseInt(quantityRaw) || 0
@@ -63,30 +68,21 @@ export async function POST() {
 
       const contactId = contacts?.[0]?.id ?? null
 
-      // Upsert usando form_timestamp como clave única.
-      // Con ignoreDuplicates: true, Supabase solo devuelve data cuando realmente inserta —
-      // por eso usamos .select('id') para contar solo inserciones reales.
-      const { data: upserted, error } = await supabase
-        .from('orders')
-        .upsert(
-          {
-            contact_id: contactId,
-            name,
-            address: address ?? '',
-            quantity,
-            phone,
-            status: 'pagado',
-            form_timestamp: timestamp,
-            email: email || null,
-            product: product || null,
-            postal_code: postalCode || null,
-            extra_data: extraData || null,
-          },
-          { onConflict: 'form_timestamp', ignoreDuplicates: true }
-        )
-        .select('id')
+      const { error } = await supabase.from('orders').insert({
+        contact_id: contactId,
+        name,
+        address: address ?? '',
+        quantity,
+        phone,
+        status: 'pagado',
+        form_timestamp: timestamp,
+        email: email || null,
+        product: product || null,
+        postal_code: postalCode || null,
+        extra_data: extraData || null,
+      })
 
-      if (!error && upserted && upserted.length > 0) synced++
+      if (!error) synced++
     }
 
     return NextResponse.json({ synced })
