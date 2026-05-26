@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Send, MessageSquare, Trash2 } from 'lucide-react'
+import { Send, MessageSquare, Trash2, Mic, MicOff } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ChatMessage {
@@ -28,12 +28,43 @@ export default function ChatClient({ initialMessages }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listening, setListening] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  function toggleListening() {
+    const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
+      || (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
+    if (!SR) { alert('Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.'); return }
+
+    if (listening) {
+      recognitionRef.current?.stop()
+      setListening(false)
+      return
+    }
+
+    const recognition = new SR()
+    recognition.lang = 'es-AR'
+    recognition.interimResults = false
+    recognition.continuous = false
+
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[0][0].transcript
+      setInput(prev => (prev ? prev + ' ' + transcript : transcript))
+      inputRef.current?.focus()
+    }
+    recognition.onerror = () => setListening(false)
+    recognition.onend = () => setListening(false)
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setListening(true)
+  }
 
   async function send() {
     const text = input.trim()
@@ -206,6 +237,20 @@ export default function ChatClient({ initialMessages }: Props) {
             }}
           />
           <button
+            onClick={toggleListening}
+            title={listening ? 'Detener grabación' : 'Hablar'}
+            style={{
+              width: '34px', height: '34px', borderRadius: '8px', border: 'none', flexShrink: 0,
+              background: listening ? 'rgba(239,68,68,0.15)' : '#1e2d45',
+              color: listening ? '#ef4444' : '#64748b',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.15s',
+              animation: listening ? 'micPulse 1s ease-in-out infinite' : 'none',
+            }}
+          >
+            {listening ? <MicOff size={15} /> : <Mic size={15} />}
+          </button>
+          <button
             onClick={send}
             disabled={!input.trim() || loading}
             style={{
@@ -229,6 +274,10 @@ export default function ChatClient({ initialMessages }: Props) {
         @keyframes pulse {
           0%, 100% { opacity: 0.3; transform: scale(0.8); }
           50% { opacity: 1; transform: scale(1.1); }
+        }
+        @keyframes micPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
         }
       `}</style>
     </div>
