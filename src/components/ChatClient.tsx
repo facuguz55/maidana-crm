@@ -38,8 +38,9 @@ export default function ChatClient({ initialMessages }: Props) {
   }, [messages, loading])
 
   function toggleListening() {
-    const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
-      || (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition
     if (!SR) { alert('Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.'); return }
 
     if (listening) {
