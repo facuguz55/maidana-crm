@@ -133,13 +133,19 @@ async function executeTool(name: string, input: ToolInput): Promise<unknown> {
       // Auto-completar unit_cost_override desde product_costs_maidana si no viene en el input
       let unitCostOverride = (input.unit_cost_override as number | undefined) ?? null
       if (!unitCostOverride && input.product) {
-        const { data: costData } = await supabase
+        const { data: allCosts } = await supabase
           .from('product_costs_maidana')
-          .select('cost_per_unit')
-          .ilike('product', String(input.product))
-          .limit(1)
-          .single()
-        if (costData?.cost_per_unit) unitCostOverride = costData.cost_per_unit
+          .select('product, cost_per_unit')
+        if (allCosts) {
+          const normalize = (s: string) =>
+            s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+          const inputNorm = normalize(String(input.product))
+          const match = allCosts.find(c => {
+            const pNorm = normalize(c.product)
+            return inputNorm.includes(pNorm) || pNorm.includes(inputNorm)
+          })
+          if (match?.cost_per_unit) unitCostOverride = match.cost_per_unit
+        }
       }
 
       const { data, error } = await supabase
