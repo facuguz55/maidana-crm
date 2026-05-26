@@ -127,6 +127,7 @@ export default function AnalisisClient({ initialCosts }: Props) {
                     <input
                       style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
                       defaultValue={c.cost_per_unit}
+                      onFocus={e => e.target.select()}
                       onBlur={e => updateCost(c.id, 'cost_per_unit', e.target.value)}
                     />
                   </div>
@@ -135,6 +136,7 @@ export default function AnalisisClient({ initialCosts }: Props) {
                     <input
                       style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
                       defaultValue={c.shipping_cost_per_order}
+                      onFocus={e => e.target.select()}
                       onBlur={e => updateCost(c.id, 'shipping_cost_per_order', e.target.value)}
                     />
                   </div>
