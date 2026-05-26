@@ -39,6 +39,9 @@ export async function POST() {
     const dataRows = rows.slice(1)
     let synced = 0
 
+    const { data: blocklist } = await supabase.from('sync_blocklist').select('form_timestamp')
+    const blocked = new Set((blocklist ?? []).map((r: { form_timestamp: string }) => r.form_timestamp))
+
     for (const row of dataRows) {
       // Columnas del formulario:
       // [0] Marca temporal  [1] Email form  [2] Nombre y Apellido  [3] Telefono
@@ -46,6 +49,7 @@ export async function POST() {
       // [8] Codigo Postal  [9] Datos extra
       const [timestamp, , name, phoneRaw, email, product, quantityRaw, address, postalCode, extraData] = row
       if (!timestamp || !name || !phoneRaw) continue
+      if (blocked.has(timestamp)) continue
 
       const phone = normalizePhone(phoneRaw)
       const quantity = parseInt(quantityRaw) || 0

@@ -67,8 +67,12 @@ export default function VentasClient({ initialOrders }: Props) {
     if (!confirm('¿Eliminar esta orden?')) return
     setDeletingId(orderId)
     const supabase = createClient()
+    const order = orders.find(o => o.id === orderId)
     const { error } = await supabase.from('orders').delete().eq('id', orderId)
     if (!error) {
+      if (order?.form_timestamp) {
+        await supabase.from('sync_blocklist').upsert({ form_timestamp: order.form_timestamp })
+      }
       setOrders(prev => prev.filter(o => o.id !== orderId))
       toast.success('Orden eliminada')
     } else {
