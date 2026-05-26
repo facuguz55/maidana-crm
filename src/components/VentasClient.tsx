@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Search, Download, RefreshCw, Package } from 'lucide-react'
+import { Search, Download, RefreshCw, Package, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderStatus } from '@/lib/types'
@@ -36,6 +36,7 @@ export default function VentasClient({ initialOrders }: Props) {
   const [search, setSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [editingPrice, setEditingPrice] = useState<{ id: string; value: string } | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function refreshOrders() {
     const supabase = createClient()
@@ -61,6 +62,20 @@ export default function VentasClient({ initialOrders }: Props) {
     const interval = setInterval(syncSheets, 5 * 60 * 1000)
     return () => { supabase.removeChannel(channel); clearInterval(interval) }
   }, [])
+
+  async function deleteOrder(orderId: string) {
+    if (!confirm('¿Eliminar esta orden?')) return
+    setDeletingId(orderId)
+    const supabase = createClient()
+    const { error } = await supabase.from('orders').delete().eq('id', orderId)
+    if (!error) {
+      setOrders(prev => prev.filter(o => o.id !== orderId))
+      toast.success('Orden eliminada')
+    } else {
+      toast.error('Error al eliminar')
+    }
+    setDeletingId(null)
+  }
 
   async function saveSalePrice(orderId: string, rawValue: string) {
     const price = parseFloat(rawValue.replace(',', '.'))
@@ -211,6 +226,7 @@ export default function VentasClient({ initialOrders }: Props) {
                 <th style={TH}>Total ($)</th>
                 <th style={TH}>Estado</th>
                 <th style={TH}>Datos extra</th>
+                <th style={{ ...TH, width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
@@ -255,6 +271,18 @@ export default function VentasClient({ initialOrders }: Props) {
                   </td>
                   <td style={{ ...TD, color: '#94a3b8', maxWidth: '280px', whiteSpace: 'normal', lineHeight: '1.4' }}>
                     {order.extra_data ?? '—'}
+                  </td>
+                  <td style={{ ...TD, width: '40px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => deleteOrder(order.id)}
+                      disabled={deletingId === order.id}
+                      title="Eliminar orden"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', color: '#475569', display: 'flex', alignItems: 'center' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#475569')}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </td>
                 </tr>
               ))}
