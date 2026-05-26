@@ -1,12 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Package, Users, TrendingUp, Settings, LogOut } from 'lucide-react'
+import { Package, Users, TrendingUp, BarChart2, Settings, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const NAV = [
   { href: '/', label: 'Clientes', icon: Users },
   { href: '/ventas', label: 'Ventas', icon: TrendingUp },
+  { href: '/analisis', label: 'Análisis', icon: BarChart2 },
   { href: '/settings', label: 'Configuración', icon: Settings },
 ]
 

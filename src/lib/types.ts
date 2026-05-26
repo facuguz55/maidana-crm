@@ -28,6 +28,27 @@ export interface Order {
   product?: string | null
   postal_code?: string | null
   extra_data?: string | null
+  sale_price?: number | null
+}
+
+export interface ProductCost {
+  id: number
+  product: string
+  cost_per_unit: number
+  shipping_cost_per_order: number
+  updated_at: string
+}
+
+export interface AnalysisResult {
+  resumen: string
+  total_ingresos: number
+  total_costos: number
+  total_ganancia: number
+  margen_porcentaje: number
+  producto_mas_rentable: string
+  cliente_mas_grande: { nombre: string; cantidad: number; ganancia: number }
+  alertas: string[]
+  recomendaciones: string[]
 }
 
 export interface Message {

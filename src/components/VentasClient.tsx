@@ -35,6 +35,7 @@ export default function VentasClient({ initialOrders }: Props) {
   const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [search, setSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [editingPrice, setEditingPrice] = useState<{ id: string; value: string } | null>(null)
 
   async function refreshOrders() {
     const supabase = createClient()
@@ -60,6 +61,19 @@ export default function VentasClient({ initialOrders }: Props) {
     const interval = setInterval(syncSheets, 5 * 60 * 1000)
     return () => { supabase.removeChannel(channel); clearInterval(interval) }
   }, [])
+
+  async function saveSalePrice(orderId: string, rawValue: string) {
+    const price = parseFloat(rawValue.replace(',', '.'))
+    if (isNaN(price) || price < 0) { setEditingPrice(null); return }
+    const supabase = createClient()
+    const { error } = await supabase.from('orders').update({ sale_price: price }).eq('id', orderId)
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, sale_price: price } : o))
+    } else {
+      toast.error('Error al guardar precio')
+    }
+    setEditingPrice(null)
+  }
 
   async function handleSyncNow() {
     setSyncing(true)
@@ -106,6 +120,8 @@ export default function VentasClient({ initialOrders }: Props) {
   })
 
   const totalUnidades = filtered.reduce((a, o) => a + o.quantity, 0)
+  const totalIngresos = filtered.reduce((a, o) => a + (o.sale_price ?? 0) * o.quantity, 0)
+  const sinPrecio = filtered.filter(o => !o.sale_price || o.sale_price === 0).length
 
   const TH: React.CSSProperties = {
     padding: '9px 14px',
@@ -139,6 +155,8 @@ export default function VentasClient({ initialOrders }: Props) {
           <h1 style={{ fontSize: '17px', fontWeight: 700, color: '#f8fafc' }}>Ventas</h1>
           <p style={{ fontSize: '12px', color: '#64748b', marginTop: '1px' }}>
             {filtered.length} órdenes · {totalUnidades} unidades
+            {totalIngresos > 0 && <span style={{ color: '#22c55e' }}> · ${totalIngresos.toLocaleString('es-AR')}</span>}
+            {sinPrecio > 0 && <span style={{ color: '#f59e0b' }}> · {sinPrecio} sin precio</span>}
           </p>
         </div>
         <div className="ventas-search-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -189,6 +207,8 @@ export default function VentasClient({ initialOrders }: Props) {
                 <th style={TH}>Cantidad</th>
                 <th style={TH}>Dirección</th>
                 <th style={TH}>Cód. Postal</th>
+                <th style={TH}>Precio unit.</th>
+                <th style={TH}>Total ($)</th>
                 <th style={TH}>Estado</th>
                 <th style={TH}>Datos extra</th>
               </tr>
@@ -208,6 +228,28 @@ export default function VentasClient({ initialOrders }: Props) {
                   <td style={{ ...TD, fontWeight: 700, color: '#f97316', textAlign: 'center', whiteSpace: 'nowrap' }}>{order.quantity}</td>
                   <td style={{ ...TD, color: '#94a3b8' }}>{order.address}</td>
                   <td style={{ ...TD, color: '#64748b', textAlign: 'center', whiteSpace: 'nowrap' }}>{order.postal_code ?? '—'}</td>
+                  <td style={{ ...TD, whiteSpace: 'nowrap' }}
+                    onClick={() => setEditingPrice({ id: order.id, value: String(order.sale_price ?? '') })}
+                  >
+                    {editingPrice?.id === order.id ? (
+                      <input
+                        autoFocus
+                        value={editingPrice.value}
+                        onChange={e => setEditingPrice({ id: order.id, value: e.target.value })}
+                        onBlur={() => saveSalePrice(order.id, editingPrice.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveSalePrice(order.id, editingPrice.value); if (e.key === 'Escape') setEditingPrice(null) }}
+                        style={{ width: '80px', background: '#1e293b', border: '1px solid #f97316', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none' }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span style={{ color: order.sale_price ? '#f8fafc' : '#475569', cursor: 'text', borderBottom: '1px dashed #334155', paddingBottom: '1px' }}>
+                        {order.sale_price ? `$${order.sale_price.toLocaleString('es-AR')}` : '—'}
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ ...TD, fontWeight: 600, color: '#22c55e', whiteSpace: 'nowrap' }}>
+                    {order.sale_price ? `$${(order.sale_price * order.quantity).toLocaleString('es-AR')}` : '—'}
+                  </td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>
                     <StatusBadge status={order.status} />
                   </td>
