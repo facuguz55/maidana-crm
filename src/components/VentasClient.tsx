@@ -66,6 +66,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
         .then(d => { if (d.synced > 0) refreshOrders() })
         .catch(() => {})
 
+    refreshOrders()
     syncSheets()
     const interval = setInterval(syncSheets, 5 * 60 * 1000)
     return () => { supabase.removeChannel(channel); clearInterval(interval) }
