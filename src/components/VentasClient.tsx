@@ -38,6 +38,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
   const [editingPrice, setEditingPrice] = useState<{ id: string; value: string } | null>(null)
   const [editingCost, setEditingCost] = useState<{ id: string; value: string } | null>(null)
   const [editingQty, setEditingQty] = useState<{ id: string; value: string } | null>(null)
+  const [editingExtraData, setEditingExtraData] = useState<{ id: string; value: string } | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const emptyForm = { name: '', phone: '', email: '', product: '', quantity: '1', address: '', postal_code: '', extra_data: '', status: 'pagado' as OrderStatus, unit_cost_override: '', sale_price: '' }
@@ -174,6 +175,18 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
       toast.error('Error al guardar precio')
     }
     setEditingPrice(null)
+  }
+
+  async function saveExtraData(orderId: string, rawValue: string) {
+    const value = rawValue.trim() || null
+    const supabase = createClient()
+    const { error } = await supabase.from('orders').update({ extra_data: value }).eq('id', orderId)
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, extra_data: value } : o))
+    } else {
+      toast.error('Error al guardar datos extra')
+    }
+    setEditingExtraData(null)
   }
 
   async function handleSyncNow() {
@@ -398,8 +411,25 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>
                     <StatusBadge status={order.status} />
                   </td>
-                  <td style={{ ...TD, color: '#94a3b8', maxWidth: '280px', whiteSpace: 'normal', lineHeight: '1.4' }}>
-                    {order.extra_data ?? '—'}
+                  <td
+                    style={{ ...TD, maxWidth: '280px', whiteSpace: 'normal', lineHeight: '1.4', cursor: 'text' }}
+                    onClick={() => { if (!editingExtraData) setEditingExtraData({ id: order.id, value: order.extra_data ?? '' }) }}
+                  >
+                    {editingExtraData?.id === order.id ? (
+                      <textarea
+                        autoFocus
+                        value={editingExtraData.value}
+                        onChange={e => setEditingExtraData({ id: order.id, value: e.target.value })}
+                        onBlur={() => saveExtraData(order.id, editingExtraData.value)}
+                        onKeyDown={e => { if (e.key === 'Escape') setEditingExtraData(null) }}
+                        style={{ width: '100%', minWidth: '200px', background: '#1e293b', border: '1px solid #3b82f6', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '4px 6px', outline: 'none', resize: 'vertical', minHeight: '60px', lineHeight: '1.4', boxSizing: 'border-box' }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span style={{ color: order.extra_data ? '#94a3b8' : '#475569' }}>
+                        {order.extra_data ?? '—'}
+                      </span>
+                    )}
                   </td>
                   <td style={{ ...TD, width: '40px', textAlign: 'center' }}>
                     <button
