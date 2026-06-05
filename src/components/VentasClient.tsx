@@ -11,11 +11,13 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   pagado: 'Pagado',
   preparando: 'Preparando',
   enviado: 'Enviado',
+  entregado: 'Entregado',
 }
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pagado: '#22c55e',
   preparando: '#f59e0b',
   enviado: '#3b82f6',
+  entregado: '#8b5cf6',
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {
@@ -238,7 +240,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
   const sinPrecio = filtered.filter(o => !o.sale_price || o.sale_price === 0).length
 
   const TH: React.CSSProperties = {
-    padding: '9px 14px',
+    padding: '6px 10px',
     textAlign: 'left',
     fontSize: '11px',
     fontWeight: 700,
@@ -246,14 +248,14 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
     whiteSpace: 'nowrap',
-    background: '#0d1526',
-    borderBottom: '1px solid #1e2d45',
+    background: '#06101a',
+    borderBottom: '1px solid #0f1f35',
   }
   const TD: React.CSSProperties = {
-    padding: '10px 14px',
-    fontSize: '13px',
-    borderBottom: '1px solid #1a2535',
-    verticalAlign: 'top',
+    padding: '6px 10px',
+    fontSize: '12px',
+    borderBottom: '1px solid #0f1f35',
+    verticalAlign: 'middle',
     color: '#cbd5e1',
   }
 
@@ -263,7 +265,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
       {/* Header */}
       <div
         className="ventas-header"
-        style={{ padding: '14px 20px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}
+        style={{ padding: '12px 16px', borderBottom: '1px solid #0f1f35', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}
       >
         <div>
           <h1 style={{ fontSize: '17px', fontWeight: 700, color: '#f8fafc' }}>Ventas</h1>
@@ -281,20 +283,20 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar..."
-              style={{ paddingLeft: '32px', paddingRight: '12px', paddingTop: '7px', paddingBottom: '7px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none', width: '220px' }}
+              style={{ paddingLeft: '32px', paddingRight: '12px', paddingTop: '7px', paddingBottom: '7px', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none', width: '220px' }}
             />
           </div>
           <button
             onClick={handleSyncNow}
             disabled={syncing}
             title="Sincronizar Sheets"
-            style={{ padding: '7px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
+            style={{ padding: '7px', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
           >
             <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
           </button>
           <button
             onClick={exportCSV}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}
           >
             <Download size={13} /> CSV
           </button>
@@ -340,7 +342,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                 <tr
                   key={order.id}
                   style={{ transition: 'background 0.1s' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = '#111e2e'}
+                  onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = '#0b1a2b'}
                   onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
                 >
                   <td style={{ ...TD, fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap' }}>{order.name}</td>
@@ -358,7 +360,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                         onChange={e => setEditingQty({ id: order.id, value: e.target.value })}
                         onBlur={() => saveQuantity(order.id, editingQty.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveQuantity(order.id, editingQty.value); if (e.key === 'Escape') setEditingQty(null) }}
-                        style={{ width: '60px', background: '#1e293b', border: '1px solid #f97316', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none', textAlign: 'center' }}
+                        style={{ width: '60px', background: '#0c1525', border: '1px solid #f97316', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none', textAlign: 'center' }}
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
@@ -377,7 +379,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                         onChange={e => setEditingCost({ id: order.id, value: e.target.value })}
                         onBlur={() => saveUnitCost(order.id, editingCost.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveUnitCost(order.id, editingCost.value); if (e.key === 'Escape') setEditingCost(null) }}
-                        style={{ width: '80px', background: '#1e293b', border: '1px solid #f59e0b', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none' }}
+                        style={{ width: '80px', background: '#0c1525', border: '1px solid #f59e0b', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none' }}
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
@@ -396,7 +398,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                         onChange={e => setEditingPrice({ id: order.id, value: e.target.value })}
                         onBlur={() => saveSalePrice(order.id, editingPrice.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveSalePrice(order.id, editingPrice.value); if (e.key === 'Escape') setEditingPrice(null) }}
-                        style={{ width: '80px', background: '#1e293b', border: '1px solid #f97316', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none' }}
+                        style={{ width: '80px', background: '#0c1525', border: '1px solid #f97316', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '2px 6px', outline: 'none' }}
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
@@ -422,7 +424,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                         onChange={e => setEditingExtraData({ id: order.id, value: e.target.value })}
                         onBlur={() => saveExtraData(order.id, editingExtraData.value)}
                         onKeyDown={e => { if (e.key === 'Escape') setEditingExtraData(null) }}
-                        style={{ width: '100%', minWidth: '200px', background: '#1e293b', border: '1px solid #3b82f6', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '4px 6px', outline: 'none', resize: 'vertical', minHeight: '60px', lineHeight: '1.4', boxSizing: 'border-box' }}
+                        style={{ width: '100%', minWidth: '200px', background: '#0c1525', border: '1px solid #3b82f6', borderRadius: '4px', color: '#f8fafc', fontSize: '12px', padding: '4px 6px', outline: 'none', resize: 'vertical', minHeight: '60px', lineHeight: '1.4', boxSizing: 'border-box' }}
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
@@ -456,13 +458,13 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
       {showModal && (
         <div
           onClick={() => setShowModal(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: '#0d1526', border: '1px solid #1e2d45', borderRadius: '14px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflow: 'auto' }}
+            style={{ background: '#06101a', border: '1px solid #0f1f35', borderRadius: '14px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflow: 'auto' }}
           >
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #0f1f35', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc' }}>Nueva venta</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}>
                 <X size={16} />
@@ -483,7 +485,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                     value={form[key as keyof typeof form]}
                     onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
                     placeholder={placeholder}
-                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               ))}
@@ -495,7 +497,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                   onChange={e => handleProductChange(e.target.value)}
                   placeholder="Ej: Álbum"
                   list="product-options"
-                  style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                 />
                 <datalist id="product-options">
                   {initialCosts.map(c => <option key={c.id} value={c.product} />)}
@@ -508,7 +510,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                     type="number" min="1"
                     value={form.quantity}
                     onChange={e => setForm(prev => ({ ...prev, quantity: e.target.value }))}
-                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
@@ -516,11 +518,12 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                   <select
                     value={form.status}
                     onChange={e => setForm(prev => ({ ...prev, status: e.target.value as OrderStatus }))}
-                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                   >
                     <option value="pagado">Pagado</option>
                     <option value="preparando">Preparando</option>
                     <option value="enviado">Enviado</option>
+                    <option value="entregado">Entregado</option>
                   </select>
                 </div>
               </div>
@@ -535,7 +538,7 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                     value={form.unit_cost_override}
                     onChange={e => setForm(prev => ({ ...prev, unit_cost_override: e.target.value }))}
                     placeholder="Ej: 9200"
-                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
@@ -545,15 +548,15 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
                     value={form.sale_price}
                     onChange={e => setForm(prev => ({ ...prev, sale_price: e.target.value }))}
                     placeholder="Ej: 17000"
-                    style={{ width: '100%', background: '#1e293b', border: '1px solid #1e2d45', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', background: '#0c1525', border: '1px solid #0f1f35', borderRadius: '7px', color: '#f8fafc', fontSize: '13px', padding: '8px 12px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
             </div>
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #1e2d45', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #0f1f35', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowModal(false)}
-                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #1e2d45', borderRadius: '8px', color: '#64748b', fontSize: '13px', cursor: 'pointer' }}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #0f1f35', borderRadius: '8px', color: '#64748b', fontSize: '13px', cursor: 'pointer' }}
               >
                 Cancelar
               </button>

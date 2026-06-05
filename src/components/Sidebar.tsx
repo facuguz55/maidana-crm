@@ -24,12 +24,12 @@ export default function Sidebar() {
   return (
     <aside className="app-sidebar" style={{
       width: '220px', flexShrink: 0,
-      background: '#0d1526', borderRight: '1px solid #1e2d45',
+      background: '#06101a', borderRight: '1px solid #0f1f35',
       display: 'flex', flexDirection: 'column', height: '100vh',
       position: 'sticky', top: 0,
     }}>
       {/* Logo */}
-      <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #1e2d45' }}>
+      <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #0f1f35' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
             width: '36px', height: '36px', borderRadius: '10px',
@@ -39,7 +39,7 @@ export default function Sidebar() {
             <Package size={18} color="#f97316" />
           </div>
           <div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc' }}>Maidana</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc' }}>Nova</div>
             <div style={{ fontSize: '11px', color: '#64748b' }}>CRM</div>
           </div>
         </div>
@@ -74,7 +74,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Logout */}
-      <div style={{ padding: '12px 10px', borderTop: '1px solid #1e2d45' }}>
+      <div style={{ padding: '12px 10px', borderTop: '1px solid #0f1f35' }}>
         <button
           onClick={handleLogout}
           style={{

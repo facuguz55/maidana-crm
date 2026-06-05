@@ -6,15 +6,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const SYSTEM = `Sos el asistente de Maidana Albums CRM. Ayudás a Marcos a gestionar su negocio de venta de álbumes y figuritas.
+const SYSTEM = `Sos el asistente de Nova CRM. Ayudás a Marcos a gestionar su negocio de venta de álbumes y figuritas.
 
 Podés:
-- Consultar, agregar y modificar ventas/órdenes
+- Consultar, agregar, modificar y eliminar ventas/órdenes
 - Dar resúmenes financieros (ingresos, costos, ganancias)
 - Responder preguntas sobre clientes y pedidos
 - Buscar contactos por nombre o teléfono
 - Enviar el formulario de pedido a cualquier contacto por WhatsApp
 - Ayudar a analizar el negocio
+- Marcar órdenes como entregadas (status: entregado)
 
 Siempre respondé en español, de forma clara y directa. Si vas a mostrar números, usá formato legible (ej: $9.200). Cuando uses herramientas, explicá brevemente qué encontraste o hiciste.
 
@@ -22,7 +23,8 @@ REGLAS CRÍTICAS — NUNCA las ignores:
 1. NUNCA digas que una venta fue registrada exitosamente sin haber llamado a la herramienta add_order y recibido { "success": true } en la respuesta.
 2. Si la herramienta retorna { "error": "..." }, informá el error al usuario. Nunca finjas éxito.
 3. Si te falta información para registrar una venta (nombre, teléfono, dirección, cantidad), pedila antes de llamar a add_order.
-4. Nunca inventes datos ni asumas valores que el usuario no proporcionó.`
+4. Nunca inventes datos ni asumas valores que el usuario no proporcionó.
+5. Antes de eliminar una orden con delete_order, confirmá siempre con el usuario mostrando nombre y teléfono del cliente.`
 
 const tools = [
   {
@@ -32,7 +34,7 @@ const tools = [
       type: 'object' as const,
       properties: {
         search: { type: 'string', description: 'Buscar por nombre, teléfono o producto (opcional)' },
-        status: { type: 'string', enum: ['pagado', 'preparando', 'enviado'], description: 'Filtrar por estado (opcional)' },
+        status: { type: 'string', enum: ['pagado', 'preparando', 'enviado', 'entregado'], description: 'Filtrar por estado (opcional)' },
         limit: { type: 'number', description: 'Cantidad máxima de resultados (default 100)' },
       },
     },
@@ -51,7 +53,7 @@ const tools = [
         email: { type: 'string', description: 'Email del cliente (opcional)' },
         postal_code: { type: 'string', description: 'Código postal (opcional)' },
         sale_price: { type: 'number', description: 'Precio de venta por unidad (opcional)' },
-        status: { type: 'string', enum: ['pagado', 'preparando', 'enviado'], description: 'Estado del pedido (default: pagado)' },
+        status: { type: 'string', enum: ['pagado', 'preparando', 'enviado', 'entregado'], description: 'Estado del pedido (default: pagado)' },
         extra_data: { type: 'string', description: 'Notas adicionales (opcional)' },
       },
       required: ['name', 'phone', 'address', 'quantity'],
@@ -66,7 +68,7 @@ const tools = [
         id: { type: 'string', description: 'ID de la orden a modificar' },
         fields: {
           type: 'object' as const,
-          description: 'Campos a actualizar: status, sale_price, unit_cost_override, address, phone, quantity, product, extra_data',
+          description: 'Campos a actualizar: status (pagado/preparando/enviado/entregado), sale_price, unit_cost_override, address, phone, quantity, product, extra_data',
         },
       },
       required: ['id', 'fields'],
@@ -93,6 +95,17 @@ const tools = [
       properties: {
         search: { type: 'string', description: 'Nombre o teléfono a buscar' },
       },
+    },
+  },
+  {
+    name: 'delete_order',
+    description: 'Elimina permanentemente una orden del sistema. SIEMPRE pedí confirmación al usuario antes de ejecutar, mostrando nombre y teléfono. Usá get_orders primero para obtener el ID.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'ID de la orden a eliminar' },
+      },
+      required: ['id'],
     },
   },
   {
@@ -172,6 +185,17 @@ async function executeTool(name: string, input: ToolInput): Promise<unknown> {
     const { id, fields } = input as { id: string; fields: ToolInput }
     const { error } = await supabase.from('orders').update(fields).eq('id', id)
     if (error) return { error: error.message || JSON.stringify(error) }
+    return { success: true }
+  }
+
+  if (name === 'delete_order') {
+    const { id } = input as { id: string }
+    const { data: order } = await supabase.from('orders').select('form_timestamp').eq('id', id).single()
+    const { error } = await supabase.from('orders').delete().eq('id', id)
+    if (error) return { error: error.message || JSON.stringify(error) }
+    if (order?.form_timestamp) {
+      await supabase.from('sync_blocklist').upsert({ form_timestamp: order.form_timestamp })
+    }
     return { success: true }
   }
 

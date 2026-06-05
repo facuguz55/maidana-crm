@@ -6,8 +6,8 @@ import "./globals.css"
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Maidana Albums CRM",
-  description: "CRM para gestión de ventas de álbumes del Mundial",
+  title: "Nova CRM",
+  description: "CRM para gestión de ventas",
 }
 
 export const viewport: Viewport = {
@@ -25,8 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           position="top-right"
           toastOptions={{
             style: {
-              background: "#1e293b",
-              border: "1px solid #1e2d45",
+              background: "#0c1525",
+              border: "1px solid #0f1f35",
               color: "#f8fafc",
             },
           }}
