@@ -1,9 +1,16 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { Search, Download, RefreshCw, Package, Trash2, Plus, X } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Download, RefreshCw, Package, Trash2, Plus, X, BarChart2, MessageSquare, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderStatus, ProductCost } from '@/lib/types'
+
+const TOPNAV = [
+  { href: '/analisis', label: 'Análisis', icon: BarChart2 },
+  { href: '/chat', label: 'Asistente IA', icon: MessageSquare },
+  { href: '/settings', label: 'Config', icon: Settings },
+]
 
 interface Props { initialOrders: Order[]; initialCosts: ProductCost[] }
 
@@ -261,6 +268,34 @@ export default function VentasClient({ initialOrders, initialCosts }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* Mini nav — reemplaza el sidebar en esta vista */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '7px 16px', borderBottom: '1px solid #0f1f35', background: '#06101a', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '12px' }}>
+          <div style={{ width: '26px', height: '26px', borderRadius: '7px', background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Package size={13} color="#f97316" />
+          </div>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>Nova</span>
+          <span style={{ fontSize: '11px', color: '#475569' }}>CRM</span>
+        </div>
+        <div style={{ width: '1px', height: '18px', background: '#0f1f35', marginRight: '8px' }} />
+        {TOPNAV.map(item => {
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              prefetch={true}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', textDecoration: 'none', fontSize: '12px', color: '#64748b', transition: 'background 0.15s, color 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLAnchorElement).style.color = '#f8fafc' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; (e.currentTarget as HTMLAnchorElement).style.color = '#64748b' }}
+            >
+              <Icon size={13} />
+              {item.label}
+            </Link>
+          )
+        })}
+      </div>
 
       {/* Header */}
       <div
