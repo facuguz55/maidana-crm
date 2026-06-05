@@ -65,13 +65,9 @@ export interface Message {
 
 export interface Settings {
   id: number
-  evolution_api_url: string
-  evolution_api_key: string
-  instance_name: string
   google_sheets_id: string
   sheet_name: string
   google_api_key: string
-  form_message: string
 }
 
 export const STATUS_LABELS: Record<ContactStatus, string> = {

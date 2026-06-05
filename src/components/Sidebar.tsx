@@ -1,11 +1,10 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Package, Users, TrendingUp, BarChart2, MessageSquare, Settings, LogOut } from 'lucide-react'
+import { Package, TrendingUp, BarChart2, MessageSquare, Settings, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const NAV = [
-  { href: '/', label: 'Clientes', icon: Users },
   { href: '/ventas', label: 'Ventas', icon: TrendingUp },
   { href: '/analisis', label: 'Análisis', icon: BarChart2 },
   { href: '/chat', label: 'Asistente IA', icon: MessageSquare },
@@ -49,7 +48,7 @@ export default function Sidebar() {
       {/* Nav */}
       <nav style={{ flex: 1, padding: '12px 10px' }}>
         {NAV.map(item => {
-          const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+          const active = pathname === item.href || (item.href !== '/ventas' && pathname.startsWith(item.href))
           const Icon = item.icon
           return (
             <Link
